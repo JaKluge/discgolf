@@ -1,0 +1,62 @@
+---
+title: "First Analysis"
+format: pdf
+editor: visual
+---
+
+Load csv data
+
+```{r}
+data_10m <- read.csv("data/10m_1/Raw Data.csv", sep = ",", header = TRUE)
+data_20m <- read.csv("data/20m_1/Raw Data.csv", sep = ",", header = TRUE)
+head(data_10m)
+```
+
+You can add options to executable code like this
+
+```{r}
+plot(data_10m$Time..s., data_10m$Absolute.acceleration..m.s.2., 
+     xlab = "Time", 
+     ylab = "Absolute acceleration", 
+     main = "10m Absolute acceleration",
+     type = "l")
+```
+
+```{r}
+
+plot(data_20m$Time..s., data_20m$Absolute.acceleration..m.s.2., 
+     xlab = "Time", 
+     ylab = "Absolute acceleration", 
+     main = "20m Absolute acceleration",
+     type = "l")
+```
+
+```{r}
+my_path_10m <- "data/10m_%NUMBER%/Raw Data.csv"
+placeholder <- "%NUMBER%"
+
+plot(0:3, type = "n", xlab = "Time", 
+     ylab = "Absolute acceleration", 
+     main = "10m Absolute acceleration", xlim = c(0,5), ylim = c(0,120))
+
+for (i in 1:10) {
+  path_i_10m <- gsub(placeholder, i, my_path_10m)
+  data_10m <- read.csv(path_i_10m, sep = ",", header = TRUE)
+  lines(data_10m$Time..s., data_10m$Absolute.acceleration..m.s.2., col = i, lwd = 1.2)  # Add each line with different color
+}
+```
+
+```{r}
+my_path_20m <- "data/20m_%NUMBER%/Raw Data.csv"
+placeholder <- "%NUMBER%"
+
+plot(0:3, type = "n", xlab = "Time", 
+     ylab = "Absolute acceleration", 
+     main = "20m Absolute acceleration", xlim = c(0,5), ylim = c(0,120))
+
+for (i in 1:10) {
+  path_i_20m <- gsub(placeholder, i, my_path_20m)
+  data_20m <- read.csv(path_i_20m, sep = ",", header = TRUE)
+  lines(data_20m$Time..s., data_20m$Absolute.acceleration..m.s.2., col = i, lwd = 1.2)  # Add each line with different color
+}
+```
