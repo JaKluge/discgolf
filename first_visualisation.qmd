@@ -9,11 +9,11 @@ Load csv data
 ```{r, echo = TRUE}
 data_10m <- read.csv("data/10m_1/Raw Data.csv", sep = ",", header = TRUE)
 data_20m <- read.csv("data/20m_1/Raw Data.csv", sep = ",", header = TRUE)
-head(data_10m)
+head(data_20m)
 ```
 
 ```{r, echo = TRUE}
-plot(data_10m$Time..s., data_10m$Absolute.acceleration..m.s.2., 
+plot(data_10m$Time..s.[100:250], data_10m$Absolute.acceleration..m.s.2.[100:250], 
      xlab = "Time", 
      ylab = "Absolute acceleration", 
      main = "10m Absolute acceleration",
@@ -22,7 +22,7 @@ plot(data_10m$Time..s., data_10m$Absolute.acceleration..m.s.2.,
 
 ```{r, echo = TRUE}
 
-plot(data_20m$Time..s., data_20m$Absolute.acceleration..m.s.2., 
+plot(data_20m$Time..s.[100:250], data_20m$Absolute.acceleration..m.s.2.[100:250], 
      xlab = "Time", 
      ylab = "Absolute acceleration", 
      main = "20m Absolute acceleration",
@@ -35,7 +35,7 @@ placeholder <- "%NUMBER%"
 
 plot(0:3, type = "n", xlab = "Time", 
      ylab = "Absolute acceleration", 
-     main = "10m Absolute acceleration", xlim = c(0,5), ylim = c(0,120))
+     main = "10m Absolute acceleration", xlim = c(1,2.5), ylim = c(0,120))
 
 for (i in 1:10) {
   path_i_10m <- gsub(placeholder, i, my_path_10m)
@@ -50,11 +50,109 @@ placeholder <- "%NUMBER%"
 
 plot(0:3, type = "n", xlab = "Time", 
      ylab = "Absolute acceleration", 
-     main = "20m Absolute acceleration", xlim = c(0,5), ylim = c(0,120))
+     main = "20m Absolute acceleration", xlim = c(1,2.5), ylim = c(0,120))
 
 for (i in 1:10) {
   path_i_20m <- gsub(placeholder, i, my_path_20m)
   data_20m <- read.csv(path_i_20m, sep = ",", header = TRUE)
   lines(data_20m$Time..s., data_20m$Absolute.acceleration..m.s.2., col = i, lwd = 1.2)
 }
+```
+
+Put all in one dataset
+
+```{r}
+library(zoo)
+my_path_10m <- "data/10m_%NUMBER%/Raw Data.csv"
+placeholder <- "%NUMBER%"
+combined_df_10 <- data.frame(matrix(ncol = 10, nrow = 491))
+
+dt <- seq(from = 0, by = 0.009971, length.out = 491)
+
+for (i in 1:10) {
+  path_i_10m <- gsub(placeholder, i, my_path_10m)
+  data_10m <- read.csv(path_i_10m, sep = ",", header = TRUE)[, "Absolute.acceleration..m.s.2."]
+  col_name <- str(i)
+  combined_df_10[,i] <- data_10m[10:500]
+}
+```
+
+```{r}
+ts_10 <- zoo(combined_df_10, dt)
+
+max_indices <- apply(ts_10, 2, which.max)
+print(max_indices)
+max_pos <- which.max(max_indices)
+
+all_lags <- max_indices[max_pos] - max_indices
+
+aligned_ts_10 <- ts_10
+for (i in 1:10) {
+  print(i)
+  print(all_lags[i])
+  aligned_ts_10[, i] <- lag(ts_10[, i], - all_lags[i], na.pad = TRUE)
+}
+
+plot(0:3, type = "n", xlab = "Time", 
+     ylab = "Absolute acceleration", 
+     main = "Aligned 10m Absolute acceleration", xlim = c(1.4,2.1), ylim = c(0,120))
+
+for (i in 1:10) {
+  lines(dt, aligned_ts_10[,i], col = i, lwd = 1.2)
+}
+```
+
+```{r}
+my_path_20m <- "data/20m_%NUMBER%/Raw Data.csv"
+placeholder <- "%NUMBER%"
+combined_df_20 <- data.frame(matrix(ncol = 10, nrow = 491))
+
+dt <- seq(from = 0, by = 0.009971, length.out = 491)
+
+for (i in 1:10) {
+  path_i_20m <- gsub(placeholder, i, my_path_20m)
+  data_20m <- read.csv(path_i_20m, sep = ",", header = TRUE)[, "Absolute.acceleration..m.s.2."]
+  col_name <- str(i)
+  combined_df_20[,i] <- data_20m[10:500]
+}
+```
+
+```{r}
+ts_20 <- zoo(combined_df_20, dt)
+
+max_indices <- apply(ts_20, 2, which.max)
+print(max_indices)
+max_pos <- which.max(max_indices)
+
+all_lags <- max_indices[max_pos] - max_indices
+
+aligned_ts_20 <- ts_20
+for (i in 1:10) {
+  print(i)
+  print(all_lags[i])
+  aligned_ts_20[, i] <- lag(ts_20[, i], - all_lags[i], na.pad = TRUE)
+}
+
+plot(0:3, type = "n", xlab = "Time", 
+     ylab = "Absolute acceleration", 
+     main = "Aligned 20m Absolute acceleration", xlim = c(1.4,2.1), ylim = c(0,120))
+
+for (i in 1:10) {
+  lines(dt, aligned_ts_20[,i], col = i, lwd = 1.2)
+}
+```
+
+```{r}
+#ecdf to test for normal distribution
+means_10m <- colMeans(ts_10[150:200], na.rm = TRUE)
+means_20m <- colMeans(ts_20[150:200], na.rm = TRUE)
+plot(ecdf(means_10m)) 
+plot(ecdf(means_20m)) 
+
+```
+
+```{r}
+#two sided t test:
+t.test(means_10m, means_20m, var.equal = TRUE, alternative = "two.sided")
+
 ```
