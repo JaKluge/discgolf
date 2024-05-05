@@ -33,9 +33,20 @@ def t_test(sample_1, sample_2, paired, alpha=0.05, equal_var=True):
 
     return reject, p_value
 
+def non_parametric_test(sample_1, sample_2, paired, alpha=0.05):
+    reject = False
+    if paired:
+        _, p_value = stats.wilcoxon(sample_1, sample_2)
+    else:
+        _, p_value = stats.mannwhitneyu(sample_1, sample_2)
+    if p_value < alpha:
+        reject = True
+
+    return reject, p_value
+
+
 def verify_normal_dist(data):
     # Use Q-Q plot to visually verify that data follows a normal distribution
-    print(data)
     z = (data-np.mean(data))/np.std(data)
     stats.probplot(z, dist="norm", plot=plt)
     plt.title("Normal Q-Q plot")
@@ -60,29 +71,42 @@ def equal_variance_test(sample_1, sample_2, alpha=0.05):
 def compare_all(path):
     regarded_features = ['Acc_Vector', 'FreeAcc_X', 'FreeAcc_Y', 'FreeAcc_Z']
     sample_pairs = [('Julian', 'Jannie'), ('Julian', 'Kevin'), ('Jannie', 'Kevin'), ('Julian', 'Forehand')]
-    
+    parametric = False
+
     for feature in regarded_features:
         print(f'{feature}\n')
         for sample_1, sample_2 in sample_pairs:
             compare = [sample_1, sample_2]
             dfs_to_compare = create_dfs(path, compare)
-            
-            # Determine if the t-test should be paired
             paired = (sample_2 == 'Forehand')
-            
-            # Perform Levene's test to check for equal variances
-            reject_levene, _ = equal_variance_test(dfs_to_compare[0][feature], dfs_to_compare[1][feature])
-            
-            # Perform t-test
-            reject_t_test, p_value = t_test(dfs_to_compare[0][feature], dfs_to_compare[1][feature], 
-                                            paired, equal_var=not reject_levene)
-            
-            test_type = "Welch's Test" if reject_levene and not paired else 't-Test'
-            rejection_status = 'rejected' if reject_t_test else 'not rejected'
+
+            if parametric:
+                reject_levene, _ = equal_variance_test(dfs_to_compare[0][feature], dfs_to_compare[1][feature])
+                if reject_levene and paired:
+                    print(f'No t-Test possible for {sample_1} and {sample_2}:')
+                    print('Significant difference in variances detected')
+                    continue
+                reject_t_test, p_value = t_test(dfs_to_compare[0][feature], dfs_to_compare[1][feature], paired, equal_var=not reject_levene)
+                test_type = "Welch's Test" if reject_levene else 't-Test'
+            else:
+                reject_test, p_value = non_parametric_test(dfs_to_compare[0][feature], dfs_to_compare[1][feature], paired)
+                test_type = "Wilcoxon" if paired else 'Mann-Whitney'
+
+            rejection_status = 'rejected' if (parametric and reject_t_test) or (not parametric and reject_test) else 'not rejected'
             print(f'{test_type} of {sample_1} and {sample_2}:')
             print(f'H0 is {rejection_status} with p-value = {p_value}\n')
         print('-' * 50)
 
+
 if __name__ == "__main__":
     input_path = 'data/20240430_splitted'
     compare_all(input_path)
+    
+    #compare = ['Julian', 'Kevin']
+    #dfs = create_dfs(input_path, compare)
+    #feature = 'Acc_Vector'
+    #verify_normal_dist(dfs[0][feature])
+
+
+
+
