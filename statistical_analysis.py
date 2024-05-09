@@ -4,21 +4,24 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import stats
 
-def create_dfs(path, compare):
+def create_dfs(path, compare, mode='variance_gyroscope'):
     dfs_to_compare = []
 
     for name in compare:
-        max_values_list = []
+        values_list = []
         directory = os.path.join(path, name)
         for filename in os.listdir(directory):
             if filename.endswith('.csv'):
                 filepath = os.path.join(directory, filename)
                 df = pd.read_csv(filepath)
-                max_values = df.max()
-                max_values_list.append(max_values)
+                if mode == 'max_acceleration':
+                    values = df.max()
+                elif mode == 'variance_gyroscope':
+                    values = df.var()
+                values_list.append(values)
 
-        max_values_df = pd.DataFrame(max_values_list)
-        dfs_to_compare.append(max_values_df)
+        values_df = pd.DataFrame(values_list)
+        dfs_to_compare.append(values_df)
 
     return dfs_to_compare
 
@@ -33,12 +36,12 @@ def t_test(sample_1, sample_2, paired, alpha=0.05, equal_var=True):
 
     return reject, p_value
 
-def non_parametric_test(sample_1, sample_2, paired, alpha=0.05):
+def non_parametric_test(sample_1, sample_2, paired, alpha=0.05, alternative = 'two-sided'):
     reject = False
     if paired:
-        _, p_value = stats.wilcoxon(sample_1, sample_2)
+        _, p_value = stats.wilcoxon(sample_1, sample_2, alternative=alternative)
     else:
-        _, p_value = stats.mannwhitneyu(sample_1, sample_2)
+        _, p_value = stats.mannwhitneyu(sample_1, sample_2, alternative=alternative)
     if p_value < alpha:
         reject = True
 
@@ -51,6 +54,7 @@ def verify_normal_dist(data):
     stats.probplot(z, dist="norm", plot=plt)
     plt.title("Normal Q-Q plot")
     plt.show()
+    
     return
 
 def equal_variance_test(sample_1, sample_2, alpha=0.05):
@@ -60,24 +64,23 @@ def equal_variance_test(sample_1, sample_2, alpha=0.05):
     if p_value < alpha:
         reject = True
 
-    fig, ax = plt.subplots()
+    _, ax = plt.subplots()
     ax.boxplot([sample_1, sample_2])
-    ax.set_xticklabels(['Data 1', 'Data 2'])
     ax.set_ylabel('Values')
     ax.set_title('Boxplots of Sample 1 and Sample 2')
-    #plt.show()
+    plt.show()
     return reject, p_value
 
-def compare_all(path):
-    regarded_features = ['Acc_Vector', 'FreeAcc_X', 'FreeAcc_Y', 'FreeAcc_Z']
-    sample_pairs = [('Julian', 'Jannie'), ('Julian', 'Kevin'), ('Jannie', 'Kevin'), ('Julian', 'Forehand')]
-    parametric = False
+def compare_all(path, parametric=False):
+    #regarded_features = ['Acc_Vector', 'FreeAcc_X', 'FreeAcc_Y', 'FreeAcc_Z']
+    regarded_features = ['Euler_X', 'Euler_Y', 'Euler_Z']
+    sample_pairs = [('Jannie', 'Julian'), ('Julian', 'Kevin'), ('Jannie', 'Kevin'), ('Julian', 'Forehand')]
 
     for feature in regarded_features:
         print(f'{feature}\n')
         for sample_1, sample_2 in sample_pairs:
             compare = [sample_1, sample_2]
-            dfs_to_compare = create_dfs(path, compare)
+            dfs_to_compare = create_dfs(path, compare, mode='variance_gyroscope')
             paired = (sample_2 == 'Forehand')
 
             if parametric:
@@ -101,11 +104,7 @@ def compare_all(path):
 if __name__ == "__main__":
     input_path = 'data/20240430_splitted'
     compare_all(input_path)
-    
-    #compare = ['Julian', 'Kevin']
-    #dfs = create_dfs(input_path, compare)
-    #feature = 'Acc_Vector'
-    #verify_normal_dist(dfs[0][feature])
+
 
 
 
