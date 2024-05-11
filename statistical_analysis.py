@@ -7,6 +7,7 @@ from scipy import stats
 def create_dfs(path, compare, mode='variance_gyroscope'):
     dfs_to_compare = []
 
+    # names of the datasets to compare: at least on of ['Jannie', 'Julian', 'Kevin', 'Forehand']
     for name in compare:
         values_list = []
         directory = os.path.join(path, name)
