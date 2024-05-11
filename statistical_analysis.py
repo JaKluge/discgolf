@@ -11,6 +11,7 @@ def create_dfs(path, compare, mode='variance_gyroscope'):
     for name in compare:
         values_list = []
         directory = os.path.join(path, name)
+        # iterate over all throws in the directory and compute maximum or variance for all features; add result as one row to the dataframe
         for filename in os.listdir(directory):
             if filename.endswith('.csv'):
                 filepath = os.path.join(directory, filename)
