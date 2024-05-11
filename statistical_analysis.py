@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import stats
+from statsmodels.stats.power import tt_ind_solve_power, tt_solve_power
 
 def create_dfs(path, compare, mode='variance_gyroscope'):
     dfs_to_compare = []
@@ -102,12 +103,31 @@ def compare_all(path, parametric=False):
             print(f'H0 is {rejection_status} with p-value = {p_value}\n')
         print('-' * 50)
 
+def calculate_sample_size(samples, paired = False, power = 0.9):
+    print(f"Sample size calculation for {samples}, {'paired' if paired else 'unpaired'}")
+
+    df1, df2 = create_dfs(input_path, samples, mode='max_acceleration')
+    std1 = df1['Acc_Vector'].std()
+    std2 = df2['Acc_Vector'].std()
+    mean1 = df1['Acc_Vector'].mean()
+    mean2 = df2['Acc_Vector'].mean()
+    delta = abs(mean1 - mean2)
+
+    if paired:
+        n1 = tt_ind_solve_power(effect_size=delta/std1, alpha=0.01, power=power)
+        n5 = tt_ind_solve_power(effect_size=delta/std1, alpha=0.05, power=power)
+    else:
+        n1 = tt_solve_power(effect_size=delta/std1, alpha=0.01, power=power)
+        n5 = tt_solve_power(effect_size=delta/std1, alpha=0.05, power=power)
+
+    print(f"Debug: std1={std1}, std2={std2}, mean1={mean1}, mean2={mean2}, delta={delta}")
+    print("For alpha=0.01: ", n1)
+    print("For alpha=0.05: ", n5)
+    print("--------------------------------------------------------------")
+
 
 if __name__ == "__main__":
     input_path = 'data/20240430_splitted'
-    compare_all(input_path)
-
-
-
-
-
+    #compare_all(input_path)
+    calculate_sample_size(samples=['Julian', 'Forehand'], paired=True)
+    calculate_sample_size(samples=['Jannie', 'Kevin'])
