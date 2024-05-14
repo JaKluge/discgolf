@@ -4,6 +4,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import stats
 from statsmodels.stats.power import tt_ind_solve_power, tt_solve_power
+import rpy2.robjects.numpy2ri
+rpy2.robjects.numpy2ri.activate()
+from rpy2.robjects.packages import importr
+stats_r = importr('stats')
 
 
 def create_dfs(path, compare, mode='variance'):
@@ -130,6 +134,18 @@ def fisher_exact_test(path, compare, mode, regarded_feature, threshold, alpha=0.
 
     return reject, p_value
 
+def multi_proportions(path, compare, mode, regarded_feature, threshold, alpha=0.05):
+    df1, df2, df3 = create_dfs(path, compare, mode=mode)
+    successes = [
+        (df[regarded_feature] > threshold).sum() for df in [df1, df2, df3]
+    ]
+    total_samples = [len(df[regarded_feature]) for df in [df1, df2, df3]]
+
+    prop_test = stats_r.prop_test(np.array(successes),  np.array(total_samples))
+    print(prop_test)
+
+    return
+
 
 def calculate_sample_size(samples, paired = False, power = 0.9):
     print(f"Sample size calculation for {samples}, {'paired' if paired else 'unpaired'}")
@@ -156,4 +172,4 @@ def calculate_sample_size(samples, paired = False, power = 0.9):
 
 if __name__ == "__main__":
     input_path = 'data/20240430_splitted'
-    _,_ = fisher_exact_test(input_path, ['Julian', 'Jannie'], 'variance', 'Euler_X', 300)
+    multi_proportions(input_path, ['Julian', 'Kevin', 'Jannie'], 'max', 'Acc_Vector', 200)
