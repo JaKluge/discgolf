@@ -103,6 +103,33 @@ def compare_all(path, parametric=False):
             print(f'H0 is {rejection_status} with p-value = {p_value}\n')
         print('-' * 50)
 
+def proportion_tests(path, compare, mode, regarded_feature, threshold, alpha=0.05):
+    reject = False
+    df1, df2 = create_dfs(path, compare, mode=mode)
+    sum1 = (df1[regarded_feature] > threshold).sum()
+    sum2 = (df2[regarded_feature] > threshold).sum()
+    
+    contingency_table = [
+        [sum1, sum2],
+        [len(df1[regarded_feature]) - sum1, len(df2[regarded_feature]) - sum2]
+    ]
+    
+    _, p_value = stats.fisher_exact(contingency_table, alternative='two-sided')
+    
+    if p_value < alpha:
+        reject = True
+        
+    prop_1 = sum1 / len(df1[regarded_feature])
+    prop_2 = sum2 / len(df2[regarded_feature])
+    
+    rejection_status = 'rejected' if reject else 'not rejected'
+    
+    print(f"Fisher exact test: prop_1={prop_1}, prop_2={prop_2}, alpha={alpha}")
+    print(f'H0 is {rejection_status} with p-value = {p_value}\n')
+
+    return reject, p_value
+
+
 def calculate_sample_size(samples, paired = False, power = 0.9):
     print(f"Sample size calculation for {samples}, {'paired' if paired else 'unpaired'}")
 
@@ -128,6 +155,4 @@ def calculate_sample_size(samples, paired = False, power = 0.9):
 
 if __name__ == "__main__":
     input_path = 'data/20240430_splitted'
-    #compare_all(input_path)
-    calculate_sample_size(samples=['Julian', 'Forehand'], paired=True)
-    calculate_sample_size(samples=['Jannie', 'Kevin'])
+    _,_ = proportion_tests(input_path, ['Jannie', 'Kevin'], 'max_acceleration', 'Acc_Vector', 200)
