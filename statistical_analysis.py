@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 from scipy import stats
 from statsmodels.stats.power import tt_ind_solve_power, tt_solve_power
 
-def create_dfs(path, compare, mode='variance_gyroscope'):
+
+def create_dfs(path, compare, mode='variance'):
     dfs_to_compare = []
 
     # names of the datasets to compare: at least on of ['Jannie', 'Julian', 'Kevin', 'Forehand']
@@ -17,9 +18,9 @@ def create_dfs(path, compare, mode='variance_gyroscope'):
             if filename.endswith('.csv'):
                 filepath = os.path.join(directory, filename)
                 df = pd.read_csv(filepath)
-                if mode == 'max_acceleration':
+                if mode == 'max':
                     values = df.max()
-                elif mode == 'variance_gyroscope':
+                elif mode == 'variance':
                     values = df.var()
                 values_list.append(values)
 
@@ -83,7 +84,7 @@ def compare_all(path, parametric=False):
         print(f'{feature}\n')
         for sample_1, sample_2 in sample_pairs:
             compare = [sample_1, sample_2]
-            dfs_to_compare = create_dfs(path, compare, mode='variance_gyroscope')
+            dfs_to_compare = create_dfs(path, compare, mode='variance')
             paired = (sample_2 == 'Forehand')
 
             if parametric:
@@ -103,7 +104,7 @@ def compare_all(path, parametric=False):
             print(f'H0 is {rejection_status} with p-value = {p_value}\n')
         print('-' * 50)
 
-def proportion_tests(path, compare, mode, regarded_feature, threshold, alpha=0.05):
+def fisher_exact_test(path, compare, mode, regarded_feature, threshold, alpha=0.05):
     reject = False
     df1, df2 = create_dfs(path, compare, mode=mode)
     sum1 = (df1[regarded_feature] > threshold).sum()
@@ -124,7 +125,7 @@ def proportion_tests(path, compare, mode, regarded_feature, threshold, alpha=0.0
     
     rejection_status = 'rejected' if reject else 'not rejected'
     
-    print(f"Fisher exact test: prop_1={prop_1}, prop_2={prop_2}, alpha={alpha}")
+    print(f"Fisher exact test: prop_1 = {prop_1}, prop_2 = {prop_2}, alpha = {alpha}")
     print(f'H0 is {rejection_status} with p-value = {p_value}\n')
 
     return reject, p_value
@@ -133,7 +134,7 @@ def proportion_tests(path, compare, mode, regarded_feature, threshold, alpha=0.0
 def calculate_sample_size(samples, paired = False, power = 0.9):
     print(f"Sample size calculation for {samples}, {'paired' if paired else 'unpaired'}")
 
-    df1, df2 = create_dfs(input_path, samples, mode='max_acceleration')
+    df1, df2 = create_dfs(input_path, samples, mode='max')
     std1 = df1['Acc_Vector'].std()
     std2 = df2['Acc_Vector'].std()
     mean1 = df1['Acc_Vector'].mean()
@@ -155,4 +156,4 @@ def calculate_sample_size(samples, paired = False, power = 0.9):
 
 if __name__ == "__main__":
     input_path = 'data/20240430_splitted'
-    _,_ = proportion_tests(input_path, ['Jannie', 'Kevin'], 'max_acceleration', 'Acc_Vector', 200)
+    _,_ = fisher_exact_test(input_path, ['Julian', 'Jannie'], 'variance', 'Euler_X', 300)
