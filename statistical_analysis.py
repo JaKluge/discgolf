@@ -83,16 +83,18 @@ def equal_variance_test(sample_1, sample_2, alpha=0.05):
     plt.show()
     return reject, p_value
 
-def compare_all(path, parametric=False):
-    #regarded_features = ['Acc_Vector', 'FreeAcc_X', 'FreeAcc_Y', 'FreeAcc_Z']
-    regarded_features = ['Euler_X', 'Euler_Y', 'Euler_Z']
+def compare_all(path, mode, parametric=False):
+    if mode == 'max':
+        regarded_features = ['Acc_Vector', 'FreeAcc_X', 'FreeAcc_Y', 'FreeAcc_Z']
+    elif mode == 'variance':
+        regarded_features = ['Euler_X', 'Euler_Y', 'Euler_Z']
     sample_pairs = [('Jannie', 'Julian'), ('Julian', 'Kevin'), ('Jannie', 'Kevin'), ('Julian', 'Forehand')]
 
     for feature in regarded_features:
         print(f'{feature}\n')
         for sample_1, sample_2 in sample_pairs:
             compare = [sample_1, sample_2]
-            dfs_to_compare = create_dfs(path, compare, mode='variance')
+            dfs_to_compare = create_dfs(path, compare, mode=mode)
             paired = (sample_2 == 'Forehand')
 
             if parametric:
@@ -165,7 +167,9 @@ def calculate_sample_size(samples, paired=False, power=0.9):
 
 if __name__ == "__main__":
     input_path = 'data/20240430_splitted'
-    df1, df2 = create_dfs(input_path, ['Julian', 'Forehand'], mode='above_threshold_duration')
-    reject, p = non_parametric_test(df1[0], df2[0], True, alpha=0.05, alternative='greater')
-    print(reject)
-    print(p)
+
+    compare_all(input_path, 'variance', False)
+    #df1, df2 = create_dfs(input_path, ['Julian', 'Forehand'], mode='above_threshold_duration')
+    #reject, p = non_parametric_test(df1[0], df2[0], True, alpha=0.05, alternative='greater')
+    #print(reject)
+    #print(p)
