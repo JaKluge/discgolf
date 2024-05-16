@@ -8,8 +8,8 @@ from itertools import cycle
 
 def create_combined_df(path, names):
     combined_dataframes = []
-    col_names = ['SampleTimeFine', 'Acc_Vector', 'FreeAcc_X', 'FreeAcc_Y', 'FreeAcc_Z', 'Euler_X', 'Euler_Y', 'Euler_Z']
-    #col_names = ['FreeAcc_X', 'FreeAcc_Y', 'FreeAcc_Z']
+    #col_names = ['SampleTimeFine', 'Acc_Vector', 'FreeAcc_X', 'FreeAcc_Y', 'FreeAcc_Z', 'Euler_X', 'Euler_Y', 'Euler_Z']
+    col_names = ['SampleTimeFine', 'FreeAcc_X', 'FreeAcc_Y', 'FreeAcc_Z',  'Euler_X', 'Euler_Y', 'Euler_Z', 'Acc_Vector']
     for name in names:
         directory = os.path.join(path, name)
         dfs = []
@@ -18,6 +18,11 @@ def create_combined_df(path, names):
                 filepath = os.path.join(directory, filename)
                 ts = pd.read_csv(filepath)
                 ts = ts[col_names]
+                if 'SampleTimeFine' in col_names:
+                    timestamps = pd.to_datetime(ts['SampleTimeFine'], unit='us')
+                    time_diffs = timestamps - timestamps[0]
+                    time_diffs_microseconds = time_diffs.dt.microseconds + time_diffs.dt.seconds * 10**6
+                    ts['SampleTimeFine'] = time_diffs_microseconds
                 ts['name'] = name
                 dfs.append(ts)
         combined_df = pd.concat(dfs, axis=0)
@@ -49,6 +54,8 @@ def tsne(combined_dataframes, names):
 
 if __name__ == "__main__":
     input_path = 'data/20240430_splitted'
-    names = ['Jannie', 'Julian', 'Kevin', 'Forehand']
+    #names = ['Julian', 'Forehand']
+    names = ['Jannie', 'Julian', 'Kevin']
+    #names = ['Jannie', 'Julian', 'Kevin', 'Forehand']
     combined_dataframes = create_combined_df(input_path, names)
     tsne(combined_dataframes, names)
