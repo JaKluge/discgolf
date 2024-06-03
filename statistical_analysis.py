@@ -115,6 +115,7 @@ def compare_all(path, mode, parametric=False):
         print('-' * 50)
 
 def fisher_exact_test(path, compare, mode, regarded_feature, threshold, alternative='two-sided', alpha=0.05):
+    # Proportion test comparing two sample groups
     reject = False
     df1, df2 = create_dfs(path, compare, mode=mode)
     sum1 = (df1[regarded_feature] > threshold).sum()
@@ -133,7 +134,8 @@ def fisher_exact_test(path, compare, mode, regarded_feature, threshold, alternat
     print(f'H0 is {rejection_status} with p-value = {p_value}\n')
     return reject, p_value
 
-def multi_proportions(path, compare, mode, regarded_feature, threshold, alpha=0.05):
+def multi_proportions(path, compare, mode, regarded_feature, threshold):
+    # Multi-proportion test
     df1, df2, df3 = create_dfs(path, compare, mode=mode)
     successes = [
         (df[regarded_feature] > threshold).sum() for df in [df1, df2, df3]
