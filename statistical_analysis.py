@@ -88,7 +88,7 @@ def compare_all(path, mode, parametric=False):
         regarded_features = ['Acc_Vector', 'FreeAcc_X', 'FreeAcc_Y', 'FreeAcc_Z']
     elif mode == 'variance':
         regarded_features = ['Euler_X', 'Euler_Y', 'Euler_Z']
-    sample_pairs = [('Jannie', 'Julian'), ('Julian', 'Kevin'), ('Jannie', 'Kevin'), ('Julian', 'Forehand')]
+    sample_pairs = [('Kevin', 'Jannie'), ('Jannie', 'Kevin'), ('Julian', 'Jannie'), ('Julian', 'Forehand')]
 
     for feature in regarded_features:
         print(f'{feature}\n')
@@ -167,9 +167,4 @@ def calculate_sample_size(samples, paired=False, power=0.9):
 
 if __name__ == "__main__":
     input_path = 'data/20240430_splitted'
-
     compare_all(input_path, 'variance', False)
-    #df1, df2 = create_dfs(input_path, ['Julian', 'Forehand'], mode='above_threshold_duration')
-    #reject, p = non_parametric_test(df1[0], df2[0], True, alpha=0.05, alternative='greater')
-    #print(reject)
-    #print(p)

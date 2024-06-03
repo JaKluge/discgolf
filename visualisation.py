@@ -14,7 +14,9 @@ def visualise_all(path, name, feature):
                 time = df.SampleTimeFine
             plt.plot(time, df[feature], linewidth=1) 
 
-    plt.title(name)
+    if not (name == 'Jannie'): written_name = name 
+    else: written_name = 'Janine'
+    plt.title(written_name)
     plt.xlabel('Time')
     plt.ylabel(feature)  
     plt.show()
