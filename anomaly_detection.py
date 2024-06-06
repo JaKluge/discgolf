@@ -56,7 +56,7 @@ def get_anomalies(df: pd.DataFrame, contamination: float, method: str):
         return pred
 
 
-def plot_anomalies(df: pd.DataFrame, df_idx: int, name_prefix: str = ""):
+def plot_anomalies(df: pd.DataFrame, df_idx: int, name_suffix: str = ""):
     fig, ax = plt.subplots(figsize=(8, 4))
     anomalies = df.loc[df["Anomaly"] == -1, ["FreeAccMagnitude"]]  # Anomaly
     ax.plot(df.index, df["FreeAccMagnitude"], color="black", label="Normal")
@@ -72,7 +72,7 @@ def plot_anomalies(df: pd.DataFrame, df_idx: int, name_prefix: str = ""):
         fname=os.path.join(
             PLOT_DIR,
             str(foldernames[df_idx]).replace(".csv", ""),
-            name_prefix + "anomalies.png",
+            "anomalies"+name_suffix+".png",
         )
     )
     plt.close()
@@ -177,7 +177,7 @@ def plot_anomaly_groups(df: pd.DataFrame, df_idx: int):
         fname=os.path.join(
             PLOT_DIR,
             str(foldernames[df_idx]).replace(".csv", ""),
-            "anomaly_groups.png",
+            "anomalies_grouped.png",
         )
     )
     plt.close()
@@ -217,7 +217,7 @@ if __name__ == "__main__":
         # determine anomalies using Isolation Forest
         df["Anomaly"] = get_anomalies(df, contamination=0.01, method=METHOD)
         # print(df["Anomaly"].value_counts())
-        plot_anomalies(df, df_idx)
+        plot_anomalies(df, df_idx, name_suffix="_raw")
 
         # get list of timestamps of anomalies
         anomalies = np.array(
@@ -239,7 +239,7 @@ if __name__ == "__main__":
         df["Anomaly"] = 1
         df.loc[anomalies.tolist(), "Anomaly"] = -1
 
-        plot_anomalies(df, df_idx, name_prefix="filtered_")
+        plot_anomalies(df, df_idx, name_suffix="_filtered")
 
         anomalies = anomalies.reshape(-1, 1)
 
