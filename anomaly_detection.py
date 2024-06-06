@@ -4,12 +4,14 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.ensemble import IsolationForest
+from sklearn.neighbors import LocalOutlierFactor
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from kneed import KneeLocator
 
 
 PLOT_DIR = "figures/anomaly_detection"
+METHOD = "isolation_forest"
 
 dfs = []
 foldernames = []
@@ -43,13 +45,18 @@ def plot_acceleration(df: pd.DataFrame, df_idx: int):
     plt.close()
 
 
-def get_anomalies(df: pd.DataFrame, contamination: float):
-    clf = IsolationForest(contamination=contamination)
-    clf.fit(df[["FreeAccMagnitude"]])
-    return clf.predict(df[["FreeAccMagnitude"]])
+def get_anomalies(df: pd.DataFrame, contamination: float, method: str):
+    if method == "isolation_forest":
+        clf = IsolationForest(contamination=contamination)
+        clf.fit(df[["FreeAccMagnitude"]])
+        return clf.predict(df[["FreeAccMagnitude"]])
+    if method == "lof":
+        lof = LocalOutlierFactor(n_neighbors=50)
+        pred = lof.fit_predict(df[["FreeAccMagnitude"]])
+        return pred
 
 
-def plot_anomalies(df: pd.DataFrame, df_idx: int):
+def plot_anomalies(df: pd.DataFrame, df_idx: int, name_prefix: str = ""):
     fig, ax = plt.subplots(figsize=(8, 4))
     anomalies = df.loc[df["Anomaly"] == -1, ["FreeAccMagnitude"]]  # Anomaly
     ax.plot(df.index, df["FreeAccMagnitude"], color="black", label="Normal")
@@ -65,7 +72,7 @@ def plot_anomalies(df: pd.DataFrame, df_idx: int):
         fname=os.path.join(
             PLOT_DIR,
             str(foldernames[df_idx]).replace(".csv", ""),
-            "anomalies.png",
+            name_prefix + "anomalies.png",
         )
     )
     plt.close()
@@ -78,7 +85,7 @@ def determine_num_clusters(
     plot_knee: bool = False,
 ):
     wcss = []
-    for i in range(1, min(11, num_max_cluster)):
+    for i in range(2, min(11, num_max_cluster)):
         kmeans = KMeans(
             n_clusters=i,
             init="k-means++",
@@ -91,7 +98,7 @@ def determine_num_clusters(
 
     if plot_knee:
         plt.figure(figsize=(8, 4))
-        plt.plot(range(1, min(11, num_max_cluster)), wcss)
+        plt.plot(range(2, min(11, num_max_cluster)), wcss)
         plt.title("Elbow Method")
         plt.xlabel("Number of clusters")
         plt.ylabel("WCSS")
@@ -105,13 +112,17 @@ def determine_num_clusters(
         plt.close()
 
     kl = KneeLocator(
-        range(1, min(11, num_max_cluster)),
+        range(2, min(11, num_max_cluster)),
         wcss,
         curve="convex",
         direction="decreasing",
         S=5,
     )
-    return kl.elbow
+    if kl.elbow is None:
+        print("Warning: No elbow detected. Opting for default = 2.")
+        return 2
+    else:
+        return kl.elbow
 
 
 def get_cluster_means(n_clusters: int, anomalies: np.array):
@@ -204,7 +215,7 @@ if __name__ == "__main__":
         plot_acceleration(df, df_idx)
 
         # determine anomalies using Isolation Forest
-        df["Anomaly"] = get_anomalies(df, contamination=0.01)
+        df["Anomaly"] = get_anomalies(df, contamination=0.01, method=METHOD)
         # print(df["Anomaly"].value_counts())
         plot_anomalies(df, df_idx)
 
@@ -212,7 +223,26 @@ if __name__ == "__main__":
         anomalies = np.array(
             df.loc[df["Anomaly"] == -1].index.tolist()
         ).reshape(-1, 1)
-        # print(anomalies)
+
+        anomalies = anomalies.squeeze()
+        # filter anomaly indices for those were at least 50 consecutive data points are included
+        delete_indices = []
+        for idx, value in enumerate(anomalies.tolist()[:-10]):
+            current_range = anomalies[idx:idx+10]
+            # print(current_range)
+            ideal_range = np.array(range(anomalies[idx], anomalies[idx]+10))
+            # print(ideal_range)
+            if not np.equal(current_range, ideal_range).all():
+                delete_indices.append(idx)
+        anomalies = np.delete(arr=anomalies, obj=delete_indices, axis=0)
+
+        df["Anomaly"] = 1
+        df.loc[anomalies.tolist(), "Anomaly"] = -1
+
+        plot_anomalies(df, df_idx, name_prefix="filtered_")
+
+        anomalies = anomalies.reshape(-1, 1)
+
 
         # determine number of clusters
         n_clusters = determine_num_clusters(
