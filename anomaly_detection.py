@@ -56,7 +56,7 @@ def get_anomalies(df: pd.DataFrame, contamination: float, method: str):
         return pred
 
 
-def plot_anomalies(df: pd.DataFrame, df_idx: int, name_suffix: str = ""):
+def plot_anomalies(df: pd.DataFrame, df_idx: int, name_prefix: str = ""):
     fig, ax = plt.subplots(figsize=(8, 4))
     anomalies = df.loc[df["Anomaly"] == -1, ["FreeAccMagnitude"]]  # Anomaly
     ax.plot(df.index, df["FreeAccMagnitude"], color="black", label="Normal")
@@ -72,7 +72,7 @@ def plot_anomalies(df: pd.DataFrame, df_idx: int, name_suffix: str = ""):
         fname=os.path.join(
             PLOT_DIR,
             str(foldernames[df_idx]).replace(".csv", ""),
-            "anomalies"+name_suffix+".png",
+            "anomalies" + name_prefix + ".png",
         )
     )
     plt.close()
@@ -123,6 +123,20 @@ def determine_num_clusters(
         return 2
     else:
         return kl.elbow
+
+
+def clean_anomalies(anomalies: np.array):
+    # filter anomaly indices for those were at least 50 consecutive data points are included
+    delete_indices = []
+    for idx, value in enumerate(anomalies.tolist()[:-10]):
+        current_range = anomalies[idx : idx + 10]
+        # print(current_range)
+        ideal_range = np.array(range(anomalies[idx], anomalies[idx] + 10))
+        # print(ideal_range)
+        if not np.equal(current_range, ideal_range).all():
+            delete_indices.append(idx)
+
+    return np.delete(arr=anomalies, obj=delete_indices, axis=0)
 
 
 def get_cluster_means(n_clusters: int, anomalies: np.array):
@@ -184,11 +198,11 @@ def plot_anomaly_groups(df: pd.DataFrame, df_idx: int):
 
 
 if __name__ == "__main__":
-
     # sort subfolders by date
     subfolders = os.listdir(os.path.join(os.getcwd(), "data/20240604"))
     subfolders.sort(key=lambda x: x.split("_")[1])
 
+    # get list of df for all measurements in defined folder
     for subfolder in subfolders:
         foldernames.append(subfolder)
         for file in os.listdir(
@@ -205,6 +219,7 @@ if __name__ == "__main__":
                 )
 
     for df_idx, df in enumerate(dfs):
+        # get ground thruth about number of throws from filename
         print("{foldername}:".format(foldername=foldernames[df_idx]))
         num_throws = determine_num_throws_from_filename(
             filename=foldernames[df_idx]
@@ -217,32 +232,17 @@ if __name__ == "__main__":
         # determine anomalies using Isolation Forest
         df["Anomaly"] = get_anomalies(df, contamination=0.01, method=METHOD)
         # print(df["Anomaly"].value_counts())
-        plot_anomalies(df, df_idx, name_suffix="_raw")
+        plot_anomalies(df, df_idx, name_prefix="_raw")
 
-        # get list of timestamps of anomalies
-        anomalies = np.array(
-            df.loc[df["Anomaly"] == -1].index.tolist()
-        ).reshape(-1, 1)
-
-        anomalies = anomalies.squeeze()
-        # filter anomaly indices for those were at least 50 consecutive data points are included
-        delete_indices = []
-        for idx, value in enumerate(anomalies.tolist()[:-10]):
-            current_range = anomalies[idx:idx+10]
-            # print(current_range)
-            ideal_range = np.array(range(anomalies[idx], anomalies[idx]+10))
-            # print(ideal_range)
-            if not np.equal(current_range, ideal_range).all():
-                delete_indices.append(idx)
-        anomalies = np.delete(arr=anomalies, obj=delete_indices, axis=0)
-
+        # get and clean anomalies
+        anomalies = np.array(df.loc[df["Anomaly"] == -1].index.tolist())
+        anomalies = clean_anomalies(anomalies)
         df["Anomaly"] = 1
         df.loc[anomalies.tolist(), "Anomaly"] = -1
-
-        plot_anomalies(df, df_idx, name_suffix="_filtered")
-
         anomalies = anomalies.reshape(-1, 1)
 
+        # plot cleaned anomalies
+        plot_anomalies(df, df_idx, name_prefix="_filtered")
 
         # determine number of clusters
         n_clusters = determine_num_clusters(
