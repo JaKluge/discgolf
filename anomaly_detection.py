@@ -32,9 +32,6 @@ def create_directories(path: str):
 
 
 def plot_acceleration(df: pd.DataFrame, df_idx: int):
-    df["FreeAccMagnitude"] = (
-        df["FreeAcc_X"] ** 2 + df["FreeAcc_Y"] ** 2 + df["FreeAcc_Z"] ** 2
-    ) ** 0.5
     df["FreeAccMagnitude"].plot(figsize=(8, 4), c="black")
     plt.title(foldernames[df_idx].split("_")[2])
     create_directories(
@@ -83,46 +80,56 @@ def determine_num_clusters(
     df_idx: int,
     num_max_cluster: int,
     plot_knee: bool = False,
+    method: str = "kmeans",
 ):
-    wcss = []
-    for i in range(2, min(11, num_max_cluster)):
-        kmeans = KMeans(
-            n_clusters=i,
-            init="k-means++",
-            max_iter=300,
-            n_init=10,
-            random_state=0,
-        )
-        kmeans.fit(anomalies)
-        wcss.append(kmeans.inertia_)
-
-    if plot_knee:
-        plt.figure(figsize=(8, 4))
-        plt.plot(range(2, min(11, num_max_cluster)), wcss)
-        plt.title("Elbow Method")
-        plt.xlabel("Number of clusters")
-        plt.ylabel("WCSS")
-        plt.savefig(
-            fname=os.path.join(
-                PLOT_DIR,
-                str(foldernames[df_idx]).replace(".csv", ""),
-                "knee.png",
+    if method == "kmeans":
+        wcss = []
+        for i in range(2, min(11, num_max_cluster)):
+            kmeans = KMeans(
+                n_clusters=i,
+                init="k-means++",
+                max_iter=300,
+                n_init=10,
+                random_state=0,
             )
-        )
-        plt.close()
+            kmeans.fit(anomalies)
+            wcss.append(kmeans.inertia_)
 
-    kl = KneeLocator(
-        range(2, min(11, num_max_cluster)),
-        wcss,
-        curve="convex",
-        direction="decreasing",
-        S=5,
-    )
-    if kl.elbow is None:
-        print("Warning: No elbow detected. Opting for default = 2.")
-        return 2
-    else:
-        return kl.elbow
+        if plot_knee:
+            plt.figure(figsize=(8, 4))
+            plt.plot(range(2, min(11, num_max_cluster)), wcss)
+            plt.title("Elbow Method")
+            plt.xlabel("Number of clusters")
+            plt.ylabel("WCSS")
+            plt.savefig(
+                fname=os.path.join(
+                    PLOT_DIR,
+                    str(foldernames[df_idx]).replace(".csv", ""),
+                    "knee.png",
+                )
+            )
+            plt.close()
+
+        kl = KneeLocator(
+            range(2, min(11, num_max_cluster)),
+            wcss,
+            curve="convex",
+            direction="decreasing",
+            S=5,
+        )
+        if kl.elbow is None:
+            print("Warning: No elbow detected. Opting for default = 2.")
+            return 2
+        else:
+            return kl.elbow
+    elif method == "heuristic":
+        print(anomalies.squeeze())
+        cluster_counter = 0
+        for num in anomalies:
+            if num+1 not in anomalies:
+                print(num)
+                cluster_counter += 1
+        return cluster_counter + 1
 
 
 def clean_anomalies(anomalies: np.array):
@@ -226,6 +233,11 @@ if __name__ == "__main__":
         )
         print("Number of throws: ", num_throws)
 
+        df["FreeAccMagnitude"] = (
+            df["FreeAcc_X"] ** 2 + df["FreeAcc_Y"] ** 2 + df["FreeAcc_Z"] ** 2) ** 0.5
+        # df["FreeAccMagnitude"] = df["FreeAccMagnitude"].rolling(window=10, center=False).mean()
+        # df = df.dropna().reset_index()
+
         # plot acceleration for inspection
         plot_acceleration(df, df_idx)
 
@@ -237,7 +249,8 @@ if __name__ == "__main__":
         # get and clean anomalies
         anomalies = np.array(df.loc[df["Anomaly"] == -1].index.tolist())
         anomalies = clean_anomalies(anomalies)
-        df["Anomaly"] = 1
+        # df = pd.concat([df, pd.DataFrame(np.ones(shape=(len(df), 1)), columns=["Anomaly"])], axis=1)
+        # print(df.index)
         df.loc[anomalies.tolist(), "Anomaly"] = -1
         anomalies = anomalies.reshape(-1, 1)
 
@@ -250,6 +263,7 @@ if __name__ == "__main__":
             num_max_cluster=len(anomalies),
             plot_knee=True,
             df_idx=df_idx,
+            method="kmeans"
         )
         print("Predicted numbers of throws", n_clusters, "\n")
 
@@ -257,7 +271,7 @@ if __name__ == "__main__":
         cluster_means = get_cluster_means(n_clusters, anomalies)
 
         # mark cluster means in df
-        df["AnomalyGroup"] = 0
+        df = pd.concat([df, pd.DataFrame(np.zeros(shape=(len(df), 1)), columns=["AnomalyGroup"])], axis=1)
         df.loc[cluster_means, "AnomalyGroup"] = 1
 
         # plot anomalies groups
