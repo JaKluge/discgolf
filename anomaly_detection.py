@@ -53,9 +53,10 @@ def get_anomalies(df: pd.DataFrame, contamination: float, method: str):
         return pred
 
 
-def plot_anomalies(df: pd.DataFrame, df_idx: int, name_prefix: str = ""):
+def plot_anomalies(df: pd.DataFrame, df_idx: int, column_name: str, name_prefix: str = ""):
     fig, ax = plt.subplots(figsize=(8, 4))
-    anomalies = df.loc[df["Anomaly"] == -1, ["FreeAccMagnitude"]]  # Anomaly
+    anomalies = df.loc[df[column_name] == -1, ["FreeAccMagnitude"]]  # Anomaly
+    print(len(anomalies))
     ax.plot(df.index, df["FreeAccMagnitude"], color="black", label="Normal")
     ax.scatter(
         anomalies.index,
@@ -244,18 +245,18 @@ if __name__ == "__main__":
         # determine anomalies using Isolation Forest
         df["Anomaly"] = get_anomalies(df, contamination=0.01, method=METHOD)
         # print(df["Anomaly"].value_counts())
-        plot_anomalies(df, df_idx, name_prefix="_raw")
+        plot_anomalies(df, df_idx, name_prefix="_raw", column_name="Anomaly")
 
         # get and clean anomalies
         anomalies = np.array(df.loc[df["Anomaly"] == -1].index.tolist())
         anomalies = clean_anomalies(anomalies)
-        # df = pd.concat([df, pd.DataFrame(np.ones(shape=(len(df), 1)), columns=["Anomaly"])], axis=1)
+        df["CleanedAnomaly"] = 1
         # print(df.index)
-        df.loc[anomalies.tolist(), "Anomaly"] = -1
+        df.loc[anomalies.tolist(), "CleanedAnomaly"] = -1
         anomalies = anomalies.reshape(-1, 1)
 
         # plot cleaned anomalies
-        plot_anomalies(df, df_idx, name_prefix="_filtered")
+        plot_anomalies(df, df_idx, name_prefix="_filtered", column_name="CleanedAnomaly")
 
         # determine number of clusters
         n_clusters = determine_num_clusters(
