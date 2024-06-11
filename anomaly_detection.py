@@ -53,7 +53,9 @@ def get_anomalies(df: pd.DataFrame, contamination: float, method: str):
         return pred
 
 
-def plot_anomalies(df: pd.DataFrame, df_idx: int, column_name: str, name_prefix: str = ""):
+def plot_anomalies(
+    df: pd.DataFrame, df_idx: int, column_name: str, name_prefix: str = ""
+):
     fig, ax = plt.subplots(figsize=(8, 4))
     anomalies = df.loc[df[column_name] == -1, ["FreeAccMagnitude"]]  # Anomaly
     print(len(anomalies))
@@ -127,14 +129,14 @@ def determine_num_clusters(
         print(anomalies.squeeze())
         cluster_counter = 0
         for num in anomalies:
-            if num+1 not in anomalies:
+            if num + 1 not in anomalies:
                 print(num)
                 cluster_counter += 1
         return cluster_counter + 1
 
 
 def clean_anomalies(anomalies: np.array):
-    # filter anomaly indices for those were at least 50 consecutive data points are included
+    # filter anomaly indices for those were at least 10 consecutive data points are included
     delete_indices = []
     for idx, value in enumerate(anomalies.tolist()[:-10]):
         current_range = anomalies[idx : idx + 10]
@@ -235,7 +237,8 @@ if __name__ == "__main__":
         print("Number of throws: ", num_throws)
 
         df["FreeAccMagnitude"] = (
-            df["FreeAcc_X"] ** 2 + df["FreeAcc_Y"] ** 2 + df["FreeAcc_Z"] ** 2) ** 0.5
+            df["FreeAcc_X"] ** 2 + df["FreeAcc_Y"] ** 2 + df["FreeAcc_Z"] ** 2
+        ) ** 0.5
         # df["FreeAccMagnitude"] = df["FreeAccMagnitude"].rolling(window=10, center=False).mean()
         # df = df.dropna().reset_index()
 
@@ -256,7 +259,9 @@ if __name__ == "__main__":
         anomalies = anomalies.reshape(-1, 1)
 
         # plot cleaned anomalies
-        plot_anomalies(df, df_idx, name_prefix="_filtered", column_name="CleanedAnomaly")
+        plot_anomalies(
+            df, df_idx, name_prefix="_filtered", column_name="CleanedAnomaly"
+        )
 
         # determine number of clusters
         n_clusters = determine_num_clusters(
@@ -264,7 +269,7 @@ if __name__ == "__main__":
             num_max_cluster=len(anomalies),
             plot_knee=True,
             df_idx=df_idx,
-            method="kmeans"
+            method="kmeans",
         )
         print("Predicted numbers of throws", n_clusters, "\n")
 
@@ -272,7 +277,15 @@ if __name__ == "__main__":
         cluster_means = get_cluster_means(n_clusters, anomalies)
 
         # mark cluster means in df
-        df = pd.concat([df, pd.DataFrame(np.zeros(shape=(len(df), 1)), columns=["AnomalyGroup"])], axis=1)
+        df = pd.concat(
+            [
+                df,
+                pd.DataFrame(
+                    np.zeros(shape=(len(df), 1)), columns=["AnomalyGroup"]
+                ),
+            ],
+            axis=1,
+        )
         df.loc[cluster_means, "AnomalyGroup"] = 1
 
         # plot anomalies groups
