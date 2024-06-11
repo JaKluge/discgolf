@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.ensemble import IsolationForest
 from sklearn.neighbors import LocalOutlierFactor
+from sklearn.metrics import silhouette_score
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from kneed import KneeLocator
@@ -19,11 +20,7 @@ foldernames = []
 
 def determine_num_throws_from_filename(filename: str):
     description = filename.split("_")[2]
-    return (
-        description.count("BH")
-        + description.count("FH")
-        + description.count("PT")
-    )
+    return description.count("BH") + description.count("FH") + description.count("PT")
 
 
 def create_directories(path: str):
@@ -35,9 +32,7 @@ def plot_acceleration(df: pd.DataFrame, df_idx: int):
     df["FreeAccMagnitude"].plot(figsize=(8, 4), c="black")
     plt.title(foldernames[df_idx].split("_")[2])
     create_directories(
-        path=os.path.join(
-            PLOT_DIR, str(foldernames[df_idx]).replace(".csv", "")
-        )
+        path=os.path.join(PLOT_DIR, str(foldernames[df_idx]).replace(".csv", ""))
     )
     plt.close()
 
@@ -85,8 +80,9 @@ def determine_num_clusters(
     plot_knee: bool = False,
     method: str = "kmeans",
 ):
-    if method == "kmeans":
+    if method == "kmeans_elbow" or method == "kmeans_silhouette":
         wcss = []
+        silhouette_scores = []
         for i in range(2, min(11, num_max_cluster)):
             kmeans = KMeans(
                 n_clusters=i,
@@ -96,7 +92,9 @@ def determine_num_clusters(
                 random_state=0,
             )
             kmeans.fit(anomalies)
+            labels = kmeans.predict(anomalies)
             wcss.append(kmeans.inertia_)
+            silhouette_scores.append(silhouette_score(anomalies, labels))
 
         if plot_knee:
             plt.figure(figsize=(8, 4))
@@ -120,11 +118,14 @@ def determine_num_clusters(
             direction="decreasing",
             S=5,
         )
-        if kl.elbow is None:
-            print("Warning: No elbow detected. Opting for default = 2.")
-            return 2
-        else:
-            return kl.elbow
+        if method == "kmeans_elbow":
+            if kl.elbow is None:
+                print("Warning: No elbow detected. Opting for default = 2.")
+                return 2
+            else:
+                return kl.elbow
+        elif method == "kmeans_silhouette":
+            return silhouette_scores.index(max(silhouette_scores)) + 2
     elif method == "heuristic":
         print(anomalies.squeeze())
         cluster_counter = 0
@@ -183,9 +184,7 @@ def plot_anomaly_groups(df: pd.DataFrame, df_idx: int):
         )
 
     # add legend for the color intervals
-    ax.plot(
-        [], [], color="orange", alpha=0.5, label="Anomaly Interval", linewidth=3
-    )
+    ax.plot([], [], color="orange", alpha=0.5, label="Anomaly Interval", linewidth=3)
     plt.title(foldernames[df_idx].split("_")[2])
 
     # # add pointers to the anomalies indicating that first intervals shows backhand, seocond interval shows forehand and last a putt
@@ -214,16 +213,14 @@ if __name__ == "__main__":
 
     # get list of df for all measurements in defined folder
     for subfolder in subfolders:
+        if not subfolder.startswith("2024"):
+            continue
         foldernames.append(subfolder)
-        for file in os.listdir(
-            os.path.join(os.getcwd(), "data/20240604", subfolder)
-        ):
+        for file in os.listdir(os.path.join(os.getcwd(), "data/20240604", subfolder)):
             if file.endswith(".csv"):
                 dfs.append(
                     pd.read_csv(
-                        os.path.join(
-                            os.getcwd(), "data/20240604", subfolder, file
-                        ),
+                        os.path.join(os.getcwd(), "data/20240604", subfolder, file),
                         skiprows=11,
                     )
                 )
@@ -231,9 +228,7 @@ if __name__ == "__main__":
     for df_idx, df in enumerate(dfs):
         # get ground thruth about number of throws from filename
         print("{foldername}:".format(foldername=foldernames[df_idx]))
-        num_throws = determine_num_throws_from_filename(
-            filename=foldernames[df_idx]
-        )
+        num_throws = determine_num_throws_from_filename(filename=foldernames[df_idx])
         print("Number of throws: ", num_throws)
 
         df["FreeAccMagnitude"] = (
@@ -269,7 +264,7 @@ if __name__ == "__main__":
             num_max_cluster=len(anomalies),
             plot_knee=True,
             df_idx=df_idx,
-            method="kmeans",
+            method="kmeans_elbow",
         )
         print("Predicted numbers of throws", n_clusters, "\n")
 
@@ -280,9 +275,7 @@ if __name__ == "__main__":
         df = pd.concat(
             [
                 df,
-                pd.DataFrame(
-                    np.zeros(shape=(len(df), 1)), columns=["AnomalyGroup"]
-                ),
+                pd.DataFrame(np.zeros(shape=(len(df), 1)), columns=["AnomalyGroup"]),
             ],
             axis=1,
         )
