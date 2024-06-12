@@ -213,7 +213,7 @@ def anomaly_detection(df: pd.DataFrame, foldername: str):
     num_throws, labels = determine_throws_from_filename(filename=foldername)
     print("Number of throws: ", num_throws)
 
-    df["FreeAccMagnitude"] = (
+    df["Acc_Vector"] = (
         df["FreeAcc_X"] ** 2 + df["FreeAcc_Y"] ** 2 + df["FreeAcc_Z"] ** 2
     ) ** 0.5
     # df["FreeAccMagnitude"] = df["FreeAccMagnitude"].rolling(window=10, center=False).mean()
