@@ -30,7 +30,7 @@ def create_directories(path: str):
 
 
 def plot_acceleration(df: pd.DataFrame, foldername: str):
-    df["FreeAccMagnitude"].plot(figsize=(8, 4), c="black")
+    df["Acc_Vector"].plot(figsize=(8, 4), c="black")
     plt.title(foldername.split("_")[2])
     create_directories(path=os.path.join(PLOT_DIR, str(foldername).replace(".csv", "")))
     plt.close()
@@ -39,11 +39,11 @@ def plot_acceleration(df: pd.DataFrame, foldername: str):
 def get_anomalies(df: pd.DataFrame, contamination: float, method: str):
     if method == "isolation_forest":
         clf = IsolationForest(contamination=contamination)
-        clf.fit(df[["FreeAccMagnitude"]])
-        return clf.predict(df[["FreeAccMagnitude"]])
+        clf.fit(df[["Acc_Vector"]])
+        return clf.predict(df[["Acc_Vector"]])
     if method == "lof":
         lof = LocalOutlierFactor(n_neighbors=50)
-        pred = lof.fit_predict(df[["FreeAccMagnitude"]])
+        pred = lof.fit_predict(df[["Acc_Vector"]])
         return pred
 
 
@@ -54,11 +54,11 @@ def plot_anomalies(
     name_prefix: str = "",
 ):
     fig, ax = plt.subplots(figsize=(8, 4))
-    anomalies = df.loc[df[column_name] == -1, ["FreeAccMagnitude"]]  # Anomaly
-    ax.plot(df.index, df["FreeAccMagnitude"], color="black", label="Normal")
+    anomalies = df.loc[df[column_name] == -1, ["Acc_Vector"]]  # Anomaly
+    ax.plot(df.index, df["Acc_Vector"], color="black", label="Normal")
     ax.scatter(
         anomalies.index,
-        anomalies["FreeAccMagnitude"],
+        anomalies["Acc_Vector"],
         color="red",
         label="Anomaly",
     )
@@ -168,8 +168,8 @@ def get_cluster_means(n_clusters: int, anomalies: np.array):
 def plot_anomaly_groups(df: pd.DataFrame, foldername: str):
     # plot acceleration
     _, ax = plt.subplots(figsize=(8, 4))
-    anomalies = df.loc[df["AnomalyGroup"] == 1, ["FreeAccMagnitude"]]  # Anomaly
-    ax.plot(df.index, df["FreeAccMagnitude"], color="black", label="Normal")
+    anomalies = df.loc[df["AnomalyGroup"] == 1, ["Acc_Vector"]]  # Anomaly
+    ax.plot(df.index, df["Acc_Vector"], color="black", label="Normal")
 
     # plot intervals to indicate anomaly groups
     for index, _ in anomalies.iterrows():
@@ -241,38 +241,41 @@ def anomaly_detection(df: pd.DataFrame, foldername: str):
     )
 
     # determine number of clusters
-    n_clusters = determine_num_clusters(
-        anomalies=anomalies,
-        num_max_cluster=len(anomalies),
-        foldername=foldername,
-        plot_knee=True,
-        method="kmeans_elbow",
-    )
+    if len(anomalies) >= 2:
+        n_clusters = determine_num_clusters(
+            anomalies=anomalies,
+            num_max_cluster=len(anomalies),
+            foldername=foldername,
+            plot_knee=True,
+            method="kmeans_silhouette",
+        )
+        print("Predicted numbers of throws", n_clusters, "\n")
+        # get cluster means
+        cluster_means = get_cluster_means(n_clusters, anomalies)
 
-    print("Predicted numbers of throws", n_clusters, "\n")
+        # mark cluster means in df
+        df = pd.concat(
+            [
+                df,
+                pd.DataFrame(np.zeros(shape=(len(df), 1)), columns=["AnomalyGroup"]),
+            ],
+            axis=1,
+        )
+        df.loc[cluster_means, "AnomalyGroup"] = 1
 
-    # get cluster means
-    cluster_means = get_cluster_means(n_clusters, anomalies)
+        # plot anomalies groups
+        plot_anomaly_groups(df=df, foldername=foldername)
 
-    # mark cluster means in df
-    df = pd.concat(
-        [
-            df,
-            pd.DataFrame(np.zeros(shape=(len(df), 1)), columns=["AnomalyGroup"]),
-        ],
-        axis=1,
-    )
-    df.loc[cluster_means, "AnomalyGroup"] = 1
-
-    # plot anomalies groups
-    plot_anomaly_groups(df=df, foldername=foldername)
+    else:
+        print("Too few anomalies found!")
+        cluster_means, labels = None, None
 
     return cluster_means, labels
 
 
 if __name__ == "__main__":
     # sort subfolders by date
-    path = "data/20240604"
+    path = "data/20240612"
     dfs = []
     foldernames = []
     subfolders = os.listdir(os.path.join(os.getcwd(), path))
@@ -283,11 +286,11 @@ if __name__ == "__main__":
         if not subfolder.startswith("2024"):
             continue
         foldernames.append(subfolder)
-        for file in os.listdir(os.path.join(os.getcwd(), "data/20240604", subfolder)):
+        for file in os.listdir(os.path.join(os.getcwd(), path, subfolder)):
             if file.endswith(".csv"):
                 dfs.append(
                     pd.read_csv(
-                        os.path.join(os.getcwd(), "data/20240604", subfolder, file),
+                        os.path.join(os.getcwd(), path, subfolder, file),
                         skiprows=11,
                     )
                 )
