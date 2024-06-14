@@ -6,7 +6,7 @@ from tsfresh.feature_extraction import extract_features
 from tsfresh.feature_extraction import settings
 from anomaly_detection import create_directories
 from anomaly_detection import anomaly_detection
-from pipeline import cut_throws
+from throw_cutter import cut_throws
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score
@@ -28,6 +28,7 @@ def create_df_old_data(path, name):
     return throw_features
 
 
+# visualise individual throws and save them in the corresponding folder
 def vis_of_throw(throw: pd.DataFrame, foldername: str, idx: int):
     plt.figure(figsize=(8, 4))
     plt.plot(throw["Acc_Vector"], c="black")
@@ -47,18 +48,23 @@ def vis_of_throw(throw: pd.DataFrame, foldername: str, idx: int):
     plt.close()
 
 
+# go through all games and extract BH, FH and PT
 def collect_data(path):
     games = []
     forehand_throws = []
     backhand_throws = []
     putt_throws = []
     foldernames = []
+    # references for cutting alignment:
+    reference_BH = None
+    reference_FH = None
+    reference_PT = None
 
     # sort subfolders by date
     subfolders = os.listdir(os.path.join(os.getcwd(), path))
     subfolders.sort(key=lambda x: x.split("_")[1])
 
-    # get list of df for all measurements in defined folder
+    # get csv files for all games
     for subfolder in subfolders:
         if not subfolder.startswith("2024"):
             continue
@@ -82,16 +88,30 @@ def collect_data(path):
             if os.path.isfile(path):
                 os.remove(path)
 
+        # anomaly detection in game
         cluster_means, labels = anomaly_detection(game, foldernames[game_idx])
+
+        # if correct number of anomalies (=throws) were found, extract them
         if len(labels) == len(cluster_means):
-            throws = cut_throws(cluster_means, game)
+            throws = cut_throws(
+                cluster_means,
+                game,
+                [reference_BH, reference_FH, reference_PT],
+                "dtw",
+            )
             for throw_idx, throw in enumerate(throws):
                 if labels[throw_idx] == "BH":
                     backhand_throws.append(throw)
+                    if reference_BH is None:
+                        reference_BH = throw
                 elif labels[throw_idx] == "FH":
                     forehand_throws.append(throw)
+                    if reference_FH is None:
+                        reference_FH = throw
                 elif labels[throw_idx] == "PT":
                     putt_throws.append(throw)
+                    if reference_PT is None:
+                        reference_PT = throw
                 vis_of_throw(throw, foldernames[game_idx], throw_idx)
         else:
             print("Throws were not identifyed correctly\n")
@@ -138,9 +158,42 @@ def classify(X_train, X_test, y_train, y_test):
     # clf = svm.SVC(random_state=0)
     clf.fit(X_train, y_train)
 
-    print(cross_val_score(clf, X_train, y_train, cv=5, scoring="recall_macro"))
-    print("predicted labels: " + str(clf.predict(X_test)))
-    print("true labels: " + str(y_test))
+    print(
+        "Accuracy of cross validation: "
+        + str(cross_val_score(clf, X_train, y_train, cv=5, scoring="accuracy"))
+    )
+    print("Predicted labels: " + str(clf.predict(X_test)))
+    print("True labels: " + str(y_test))
+
+
+# visualise all identified throws of one category (BH, FH, PT): find in figures/overview
+def visualise_all(throw_set, idx):
+    if idx == 0:
+        name = "BH"
+    elif idx == 1:
+        name = "FH"
+    elif idx == 2:
+        name = "PT"
+
+    time = None
+    for throw in throw_set:
+        throw["Acc_Vector"]
+        throw["SampleTimeFine"] /= 1000
+        if time is None:
+            time = throw.SampleTimeFine
+        plt.plot(time, throw["Acc_Vector"], linewidth=1)
+
+    plt.xlabel("Time (ms)")
+    plt.ylabel("Acceleration (m/s²)")
+    plt.title("All " + name + " throws")
+
+    plot_dir = os.path.join(PLOT_DIR, "overview")
+    create_directories(path=plot_dir)
+    plot_path = os.path.join(plot_dir, f"all_throws_{name}.png")
+    plt.savefig(fname=plot_path)
+    plt.close()
+
+    return
 
 
 if __name__ == "__main__":
@@ -148,7 +201,8 @@ if __name__ == "__main__":
     path = "data/20240612"
     throw_sets = collect_data(path)
     feature_sets = []
-    for throw_set in throw_sets:
+    for i, throw_set in enumerate(throw_sets):
+        visualise_all(throw_set, i)
         throw_features = feature_extraction(throw_set)
         feature_sets.append(throw_features)
     # combine FH and BH throws (not PT yet)
