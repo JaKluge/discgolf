@@ -118,7 +118,7 @@ def collect_data(path):
 
     print(f"Number of identifyed forhand throws: {len(forehand_throws)}")
     print(f"Number of identifyed backhand throws: {len(backhand_throws)}")
-    print(f"Number of identifyed putt throws: {len(putt_throws)}")
+    print(f"Number of identifyed putt throws: {len(putt_throws)}\n")
 
     return [backhand_throws, forehand_throws, putt_throws]
 
@@ -159,7 +159,7 @@ def classify(X_train, X_test, y_train, y_test):
     clf.fit(X_train, y_train)
 
     print(
-        "Accuracy of cross validation: "
+        "\nAccuracy of cross validation: "
         + str(cross_val_score(clf, X_train, y_train, cv=5, scoring="accuracy"))
     )
     print("Predicted labels: " + str(clf.predict(X_test)))
