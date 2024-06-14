@@ -53,7 +53,7 @@ def plot_anomalies(
     column_name: str,
     name_prefix: str = "",
 ):
-    fig, ax = plt.subplots(figsize=(8, 4))
+    _, ax = plt.subplots(figsize=(8, 4))
     anomalies = df.loc[df[column_name] == -1, ["Acc_Vector"]]  # Anomaly
     ax.plot(df.index, df["Acc_Vector"], color="black", label="Normal")
     ax.scatter(
@@ -138,12 +138,13 @@ def determine_num_clusters(
 
 
 def clean_anomalies(anomalies: np.array):
-    # filter anomaly indices for those were at least 10 consecutive data points are included
+    # filter anomaly indices for those were at least filter_num consecutive data points are included
     delete_indices = []
-    for idx, value in enumerate(anomalies.tolist()[:-10]):
-        current_range = anomalies[idx : idx + 10]
+    filter_num = 5
+    for idx, value in enumerate(anomalies.tolist()[:-filter_num]):
+        current_range = anomalies[idx : idx + filter_num]
         # print(current_range)
-        ideal_range = np.array(range(anomalies[idx], anomalies[idx] + 10))
+        ideal_range = np.array(range(anomalies[idx], anomalies[idx] + filter_num))
         # print(ideal_range)
         if not np.equal(current_range, ideal_range).all():
             delete_indices.append(idx)
@@ -223,7 +224,7 @@ def anomaly_detection(df: pd.DataFrame, foldername: str):
     plot_acceleration(df, foldername)
 
     # determine anomalies using Isolation Forest
-    df["Anomaly"] = get_anomalies(df, contamination=0.01, method=METHOD)
+    df["Anomaly"] = get_anomalies(df, contamination=0.03, method=METHOD)
     # print(df["Anomaly"].value_counts())
     plot_anomalies(df, foldername, name_prefix="_raw", column_name="Anomaly")
 
@@ -247,7 +248,7 @@ def anomaly_detection(df: pd.DataFrame, foldername: str):
             num_max_cluster=len(anomalies),
             foldername=foldername,
             plot_knee=True,
-            method="kmeans_silhouette",
+            method="kmeans_elbow",
         )
         print("Predicted numbers of throws", n_clusters, "\n")
         # get cluster means
