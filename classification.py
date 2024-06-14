@@ -151,8 +151,8 @@ if __name__ == "__main__":
         throw_features = feature_extraction(throw_set)
         feature_sets.append(throw_features)
     # combine FH and BH throws (not PT yet)
-    df_train = pd.concat(feature_sets[0:2])
-    y_train = np.concatenate(
+    df_extracted = pd.concat(feature_sets[0:2])
+    y_extracted = np.concatenate(
         (
             ["BH"] * len(feature_sets[0]),
             ["FH"] * len(feature_sets[1]),
@@ -177,7 +177,7 @@ if __name__ == "__main__":
 
     # Version 2: train and test on extracted throws
     X_train, X_test, y_train, y_test = train_test_split(
-        df_train, y_train, stratify=y_train, test_size=0.2
+        df_extracted, y_extracted, stratify=y_extracted, test_size=0.2
     )
 
     classify(X_train, X_test, y_train, y_test)
