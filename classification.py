@@ -14,6 +14,7 @@ from sklearn.model_selection import cross_val_score
 PLOT_DIR = "figures/anomaly_detection"
 
 
+# get data and extract features from Julians old throws
 def create_df_old_data(path, name):
     dfs = []
     directory = os.path.join(path, name)
@@ -35,8 +36,8 @@ def vis_of_throw(throw: pd.DataFrame, foldername: str, idx: int):
         foldername.split("_")[2] if len(foldername.split("_")) > 2 else foldername
     )
     plt.title(f"{title_part}_{idx}")
-    plt.xlabel("Acc_Vector")
-    plt.ylabel("Time")
+    plt.xlabel("Time")
+    plt.ylabel("Acc_Vector")
 
     plot_dir = os.path.join(PLOT_DIR, str(foldername).replace(".csv", ""))
     create_directories(plot_dir)
