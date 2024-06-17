@@ -137,6 +137,16 @@ def visualise_all(throw_set, name):
     return
 
 
+def remove_files_in_directory(directory):
+    if os.path.exists(directory):
+        file_list = os.listdir(directory)
+        for file in file_list:
+            file_path = os.path.join(directory, file)
+            os.remove(file_path)
+    else:
+        print(f"Directory {directory} does not exist.")
+
+
 if __name__ == "__main__":
     # get throws from games and extract features
     # paths = ["data/20240612", "data/20240604"]
@@ -144,6 +154,7 @@ if __name__ == "__main__":
     throws_list = collect_data(paths)
 
     os.makedirs(DF_DIR, exist_ok=True)
+    remove_files_in_directory(DF_DIR)
     for i, throw in enumerate(throws_list):
         file_path = os.path.join(DF_DIR, f"timeseries_{i}.csv")
         throw.to_csv(file_path, index=False)
