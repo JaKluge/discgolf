@@ -1,0 +1,153 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import os
+from anomaly_detection import create_directories
+from anomaly_detection import anomaly_detection
+from throw_cutter import cut_throws
+
+
+PLOT_DIR = "figures/anomaly_detection"
+DF_DIR = "data/splitted_throws"
+
+
+# visualise individual throws and save them in the corresponding folder
+def vis_of_throw(throw: pd.DataFrame, foldername: str, idx: int):
+    plt.figure(figsize=(8, 4))
+    plt.plot(throw["Acc_Vector"], c="black")
+
+    title_part = (
+        foldername.split("_")[2] if len(foldername.split("_")) > 2 else foldername
+    )
+    plt.title(f"{title_part}_{idx}")
+    plt.xlabel("Time")
+    plt.ylabel("Acc_Vector")
+
+    plot_dir = os.path.join(PLOT_DIR, str(foldername).replace(".csv", ""))
+    create_directories(plot_dir)
+
+    plot_path = os.path.join(plot_dir, f"throw_{idx}.png")
+    plt.savefig(fname=plot_path)
+    plt.close()
+
+
+def get_games(paths):
+    games = []
+    foldernames = []
+    # sort subfolders by date
+    for path in paths:
+        subfolders = os.listdir(os.path.join(os.getcwd(), path))
+        subfolders.sort(key=lambda x: x.split("_")[1])
+
+        # get csv files for all games
+        for subfolder in subfolders:
+            if not subfolder.startswith("2024"):
+                continue
+            foldernames.append(subfolder)
+            for file in os.listdir(os.path.join(os.getcwd(), path, subfolder)):
+                if file.endswith(".csv"):
+                    games.append(
+                        pd.read_csv(
+                            os.path.join(os.getcwd(), path, subfolder, file),
+                            skiprows=11,
+                        )
+                    )
+
+    return games, foldernames
+
+
+# go through all games and extract BH, FH and PT
+def collect_data(paths):
+    throws_list = []
+    # references for cutting alignment:
+    reference_BH = None
+    reference_FH = None
+    reference_PT = None
+
+    games, foldernames = get_games(paths)
+
+    for game_idx, game in enumerate(games):
+        # delete all images of individual throws
+        for idx in range(3):
+            path = os.path.join(
+                os.path.join(PLOT_DIR, str(foldernames[game_idx]).replace(".csv", "")),
+                f"throw_{idx}.png",
+            )
+            if os.path.isfile(path):
+                os.remove(path)
+
+        # anomaly detection in game
+        cluster_means, labels = anomaly_detection(game, foldernames[game_idx])
+
+        # if correct number of anomalies (=throws) were found, extract them
+        if len(labels) == len(cluster_means):
+            throws = cut_throws(
+                cluster_means,
+                game,
+                [reference_BH, reference_FH, reference_PT],
+                "dtw",
+            )
+            for throw_idx, throw in enumerate(throws):
+                throw_copy = throw.copy()
+                throw_copy["Label"] = labels[throw_idx]
+                throws_list.append(throw_copy)
+                if reference_BH is None and labels[throw_idx] == "BH":
+                    reference_BH = throw_copy
+                if reference_FH is None and labels[throw_idx] == "FH":
+                    reference_FH = throw_copy
+                if labels[throw_idx] == "PT" and labels[throw_idx] == "PT":
+                    reference_PT = throw_copy
+                vis_of_throw(throw, foldernames[game_idx], throw_idx)
+        else:
+            print("Throws were not identifyed correctly\n")
+
+    print(
+        f"Number of identified forhand throws: {sum(throw['Label'].iloc[0] == 'FH' for throw in throws_list)}"
+    )
+    print(
+        f"Number of identified backhand throws: {sum(throw['Label'].iloc[0] == 'BH' for throw in throws_list)}"
+    )
+    print(
+        f"Number of identified putt throws: {sum(throw['Label'].iloc[0] == 'PT' for throw in throws_list)}\n"
+    )
+
+    return throws_list
+
+
+# visualise all identified throws of one category (BH, FH, PT): find in figures/overview
+def visualise_all(throw_set, name):
+    time = None
+    for throw in throw_set:
+        throw["Acc_Vector"]
+        throw["SampleTimeFine"] /= 1000
+        if time is None:
+            time = throw.SampleTimeFine
+        plt.plot(time, throw["Acc_Vector"], linewidth=1)
+
+    plt.xlabel("Time (ms)")
+    plt.ylabel("Acceleration (m/s²)")
+    plt.title("All " + name + " throws")
+
+    plot_dir = os.path.join(PLOT_DIR, "overview")
+    create_directories(path=plot_dir)
+    plot_path = os.path.join(plot_dir, f"all_throws_{name}.png")
+    plt.savefig(fname=plot_path)
+    plt.close()
+
+    return
+
+
+if __name__ == "__main__":
+    # get throws from games and extract features
+    # paths = ["data/20240612", "data/20240604"]
+    paths = ["data/20240612"]
+    throws_list = collect_data(paths)
+
+    os.makedirs(DF_DIR, exist_ok=True)
+    for i, throw in enumerate(throws_list):
+        file_path = os.path.join(DF_DIR, f"timeseries_{i}.csv")
+        throw.to_csv(file_path, index=False)
+
+    visualise_all([df for df in throws_list if df["Label"].iloc[0] == "FH"], "FH")
+    visualise_all([df for df in throws_list if df["Label"].iloc[0] == "BH"], "BH")
+    visualise_all([df for df in throws_list if df["Label"].iloc[0] == "PT"], "PT")

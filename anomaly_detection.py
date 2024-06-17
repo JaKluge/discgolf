@@ -81,9 +81,8 @@ def determine_num_clusters(
     plot_knee: bool = False,
     method: str = "kmeans",
 ):
-    if method == "kmeans_elbow" or method == "kmeans_silhouette":
+    if method == "kmeans":
         wcss = []
-        silhouette_scores = []
         for i in range(2, min(11, num_max_cluster)):
             kmeans = KMeans(
                 n_clusters=i,
@@ -93,9 +92,7 @@ def determine_num_clusters(
                 random_state=0,
             )
             kmeans.fit(anomalies)
-            labels = kmeans.predict(anomalies)
             wcss.append(kmeans.inertia_)
-            silhouette_scores.append(silhouette_score(anomalies, labels))
 
         if plot_knee:
             plt.figure(figsize=(8, 4))
@@ -119,14 +116,12 @@ def determine_num_clusters(
             direction="decreasing",
             S=5,
         )
-        if method == "kmeans_elbow":
-            if kl.elbow is None:
-                print("Warning: No elbow detected. Opting for default = 2.")
-                return 2
-            else:
-                return kl.elbow
-        elif method == "kmeans_silhouette":
-            return silhouette_scores.index(max(silhouette_scores)) + 2
+
+        if kl.elbow is None:
+            print("Warning: No elbow detected. Opting for default = 2.")
+            return 2
+        else:
+            return kl.elbow
     elif method == "heuristic":
         print(anomalies.squeeze())
         cluster_counter = 0
@@ -248,7 +243,7 @@ def anomaly_detection(df: pd.DataFrame, foldername: str):
             num_max_cluster=len(anomalies),
             foldername=foldername,
             plot_knee=True,
-            method="kmeans_elbow",
+            method="kmeans",
         )
         print("Predicted numbers of throws", n_clusters, "\n")
         # get cluster means
