@@ -60,9 +60,7 @@ def get_games(paths):
 def collect_data(paths):
     throws_list = []
     # references for cutting alignment:
-    reference_BH = None
-    reference_FH = None
-    reference_PT = None
+    references = {"BH": None, "FH": None, "PT": None}
 
     games, foldernames = get_games(paths)
 
@@ -84,19 +82,20 @@ def collect_data(paths):
             throws = cut_throws(
                 cluster_means,
                 game,
-                [reference_BH, reference_FH, reference_PT],
+                labels,
+                references,
                 "dtw",
             )
             for throw_idx, throw in enumerate(throws):
                 throw_copy = throw.copy()
                 throw_copy["Label"] = labels[throw_idx]
                 throws_list.append(throw_copy)
-                if reference_BH is None and labels[throw_idx] == "BH":
-                    reference_BH = throw_copy
-                if reference_FH is None and labels[throw_idx] == "FH":
-                    reference_FH = throw_copy
-                if labels[throw_idx] == "PT" and labels[throw_idx] == "PT":
-                    reference_PT = throw_copy
+                if references["BH"] is None and labels[throw_idx] == "BH":
+                    references["BH"] = throw_copy
+                if references["FH"] is None and labels[throw_idx] == "FH":
+                    references["FH"] = throw_copy
+                if references["PT"] is None and labels[throw_idx] == "PT":
+                    references["PT"] = throw_copy
                 vis_of_throw(throw, foldernames[game_idx], throw_idx)
         else:
             print("Throws were not identifyed correctly\n")
@@ -150,7 +149,7 @@ def remove_files_in_directory(directory):
 if __name__ == "__main__":
     # get throws from games and extract features
     # paths = ["data/20240612", "data/20240604"]
-    paths = ["data/20240612"]
+    paths = ["data/20240612", "data/20240619", "data/20240604", "data/20240608"]
     throws_list = collect_data(paths)
 
     os.makedirs(DF_DIR, exist_ok=True)
