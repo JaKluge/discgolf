@@ -150,10 +150,9 @@ def remove_files_in_directory(directory):
 
 if __name__ == "__main__":
     # get throws from games and extract features
-    # paths = ["data/manually_cutted_throws"]
-    anomaly_contaminations = [0.01, 0.03]
-    # paths = ["data/20240604"]
-    paths = ["data/20240604", "data/20240608"]
+    # best contanimation values for the individual game sets
+    anomaly_contaminations = [0.03, 0.01, 0.04, 0.04]
+    paths = ["data/20240612", "data/20240604", "data/20240608", "data/20240619"]
     throws_list = collect_data(paths, anomaly_contaminations)
 
     os.makedirs(DF_DIR, exist_ok=True)

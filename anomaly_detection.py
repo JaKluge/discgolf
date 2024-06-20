@@ -305,4 +305,4 @@ if __name__ == "__main__":
                 )
 
     for df_idx, df in enumerate(dfs):
-        _, _ = anomaly_detection(df, foldernames[df_idx])
+        _, _ = anomaly_detection(df, foldernames[df_idx], 0.01)
