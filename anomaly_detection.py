@@ -201,12 +201,23 @@ def plot_anomaly_groups(df: pd.DataFrame, foldername: str):
     plt.close()
 
 
+def remove_overlapping_cluster_means(centers):
+    centers = np.sort(centers)
+    non_overlapping_centers = [centers[0]]
+
+    for i in range(1, len(centers)):
+        # If the current center does not overlap with the last non-overlapping center, add it to the list
+        if centers[i] > non_overlapping_centers[-1] + 100:
+            non_overlapping_centers.append(centers[i])
+
+    return np.array(non_overlapping_centers)
+
+
 def anomaly_detection(df: pd.DataFrame, foldername: str):
     # get ground thruth about number of throws from filename
     print("{foldername}:".format(foldername=foldername))
     num_throws, labels = determine_throws_from_filename(filename=foldername)
     print("Number of throws: ", num_throws)
-
     df["Acc_Vector"] = (
         df["FreeAcc_X"] ** 2 + df["FreeAcc_Y"] ** 2 + df["FreeAcc_Z"] ** 2
     ) ** 0.5
@@ -245,7 +256,9 @@ def anomaly_detection(df: pd.DataFrame, foldername: str):
         )
         print("Predicted numbers of throws", n_clusters, "\n")
         # get cluster means
-        cluster_means = get_cluster_means(n_clusters, anomalies)
+        cluster_means_with_overlaps = get_cluster_means(n_clusters, anomalies)
+        cluster_means = remove_overlapping_cluster_means(cluster_means_with_overlaps)
+        # luster_means = remove_overlaps(anomalies)
 
         # mark cluster means in df
         df = pd.concat(
