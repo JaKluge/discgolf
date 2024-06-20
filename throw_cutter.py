@@ -26,33 +26,28 @@ def align_time_series(time_series_1, time_series_2):
 
 
 def cut_throws(
-    centers: np.array,
+    center: int,
     game: pd.DataFrame,
-    labels: np.array,
+    label: str,
     references: dict,
     method="window",
 ):
-    throws = []
     if method == "window":
-        for center in centers:
+        start_time = max(0, center - WINDOW_SIZE)
+        end_time = min(len(game), center + WINDOW_SIZE)
+        throw = game.iloc[start_time:end_time]
+
+    elif method == "dtw":
+        if references[label] is None:
+            throw = cut_throws(center, game, label, references)
+        else:
             start_time = max(0, center - WINDOW_SIZE)
             end_time = min(len(game), center + WINDOW_SIZE)
             throw = game.iloc[start_time:end_time]
-            throws.append(throw)
+            aligned_center_rel = align_time_series(references[label], throw)
+            aligned_center = range(start_time, end_time)[aligned_center_rel]
+            start_time = max(0, aligned_center - WINDOW_SIZE)
+            end_time = min(len(game), aligned_center + WINDOW_SIZE)
+            throw = game.iloc[start_time:end_time]
 
-    elif method == "dtw":
-        if all(value is None for value in references.values()):
-            throws = cut_throws(centers, game, labels, references)
-        else:
-            for i, center in enumerate(centers):
-                start_time = max(0, center - WINDOW_SIZE)
-                end_time = min(len(game), center + WINDOW_SIZE)
-                throw = game.iloc[start_time:end_time]
-                aligned_center_rel = align_time_series(references[labels[i]], throw)
-                aligned_center = range(start_time, end_time)[aligned_center_rel]
-                start_time = max(0, aligned_center - WINDOW_SIZE)
-                end_time = min(len(game), aligned_center + WINDOW_SIZE)
-                throw = game.iloc[start_time:end_time]
-                throws.append(throw)
-
-    return throws
+    return throw
