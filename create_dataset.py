@@ -66,7 +66,7 @@ def collect_data(paths):
 
     for game_idx, game in enumerate(games):
         # delete all images of individual throws
-        for idx in range(3):
+        for idx in range(len(games)):
             path = os.path.join(
                 os.path.join(PLOT_DIR, str(foldernames[game_idx]).replace(".csv", "")),
                 f"throw_{idx}.png",
