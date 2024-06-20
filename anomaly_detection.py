@@ -202,7 +202,7 @@ def plot_anomaly_groups(df: pd.DataFrame, foldername: str):
 
 
 def remove_overlapping_cluster_means(centers):
-    problematic_distance = 100
+    problematic_distance = 200
     centers = np.sort(centers)
     non_overlapping_centers = [centers[0]]
 
@@ -214,7 +214,7 @@ def remove_overlapping_cluster_means(centers):
     return np.array(non_overlapping_centers)
 
 
-def anomaly_detection(df: pd.DataFrame, foldername: str):
+def anomaly_detection(df: pd.DataFrame, foldername: str, anomaly_contamination: float):
     # get ground thruth about number of throws from filename
     print("{foldername}:".format(foldername=foldername))
     num_throws, labels = determine_throws_from_filename(filename=foldername)
@@ -229,7 +229,9 @@ def anomaly_detection(df: pd.DataFrame, foldername: str):
     plot_acceleration(df, foldername)
 
     # determine anomalies using Isolation Forest
-    df["Anomaly"] = get_anomalies(df, contamination=0.03, method=METHOD)
+    df["Anomaly"] = get_anomalies(
+        df, contamination=anomaly_contamination, method=METHOD
+    )
     # print(df["Anomaly"].value_counts())
     plot_anomalies(df, foldername, name_prefix="_raw", column_name="Anomaly")
 

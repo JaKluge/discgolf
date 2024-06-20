@@ -31,11 +31,12 @@ def vis_of_throw(throw: pd.DataFrame, foldername: str, idx: int):
     plt.close()
 
 
-def get_games(paths):
+def get_games(paths, anomaly_contanimations):
     games = []
     foldernames = []
+    anomalies_list = []
     # sort subfolders by date
-    for path in paths:
+    for path, anomaly_contanimation in zip(paths, anomaly_contanimations):
         subfolders = os.listdir(os.path.join(os.getcwd(), path))
         subfolders.sort(key=lambda x: x.split("_")[1])
 
@@ -52,19 +53,22 @@ def get_games(paths):
                             skiprows=11,
                         )
                     )
+                    anomalies_list.append(anomaly_contanimation)
 
-    return games, foldernames
+    return games, foldernames, anomalies_list
 
 
 # go through all games and extract BH, FH and PT
-def collect_data(paths):
+def collect_data(paths, anomaly_contanimations):
     throws_list = []
     # references for cutting alignment:
     references = {"BH": None, "FH": None, "PT": None}
 
-    games, foldernames = get_games(paths)
+    games, foldernames, anomalies_list = get_games(paths, anomaly_contanimations)
 
-    for game_idx, game in enumerate(games):
+    for game_idx, (game, anomaly_contanimation) in enumerate(
+        zip(games, anomalies_list)
+    ):
         # delete all images of individual throws
         for idx in range(len(games)):
             path = os.path.join(
@@ -75,7 +79,9 @@ def collect_data(paths):
                 os.remove(path)
 
         # anomaly detection in game
-        cluster_means, labels = anomaly_detection(game, foldernames[game_idx])
+        cluster_means, labels = anomaly_detection(
+            game, foldernames[game_idx], anomaly_contanimation
+        )
 
         # if correct number of anomalies (=throws) were found, extract them
         if len(labels) == len(cluster_means):
@@ -145,9 +151,10 @@ def remove_files_in_directory(directory):
 if __name__ == "__main__":
     # get throws from games and extract features
     # paths = ["data/manually_cutted_throws"]
-    paths = ["data/20240612"]
-    # paths = ["data/20240604", "data/20240608"]
-    throws_list = collect_data(paths)
+    anomaly_contaminations = [0.01, 0.03]
+    # paths = ["data/20240604"]
+    paths = ["data/20240604", "data/20240608"]
+    throws_list = collect_data(paths, anomaly_contaminations)
 
     os.makedirs(DF_DIR, exist_ok=True)
     remove_files_in_directory(DF_DIR)
