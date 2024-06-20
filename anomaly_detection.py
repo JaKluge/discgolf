@@ -202,12 +202,13 @@ def plot_anomaly_groups(df: pd.DataFrame, foldername: str):
 
 
 def remove_overlapping_cluster_means(centers):
+    problematic_distance = 100
     centers = np.sort(centers)
     non_overlapping_centers = [centers[0]]
 
     for i in range(1, len(centers)):
         # If the current center does not overlap with the last non-overlapping center, add it to the list
-        if centers[i] > non_overlapping_centers[-1] + 100:
+        if centers[i] > non_overlapping_centers[-1] + problematic_distance:
             non_overlapping_centers.append(centers[i])
 
     return np.array(non_overlapping_centers)
@@ -258,7 +259,6 @@ def anomaly_detection(df: pd.DataFrame, foldername: str):
         # get cluster means
         cluster_means_with_overlaps = get_cluster_means(n_clusters, anomalies)
         cluster_means = remove_overlapping_cluster_means(cluster_means_with_overlaps)
-        # luster_means = remove_overlaps(anomalies)
 
         # mark cluster means in df
         df = pd.concat(
