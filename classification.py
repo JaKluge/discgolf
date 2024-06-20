@@ -20,6 +20,7 @@ from sklearn.model_selection import KFold, GridSearchCV
 
 PLOT_DIR = "figures/anomaly_detection"
 DF_DIR = "data/splitted_throws"
+SEED = np.random.RandomState(0)
 
 
 # this takes a list of dataframes/throws and extracts features for every throw
@@ -70,7 +71,7 @@ def classify_ts(X_train, X_test, y_train, y_test):
 
     knn = KNeighborsTimeSeriesClassifier(n_neighbors=2)
     p_grid = {"n_neighbors": [1, 5]}
-    cv = KFold(n_splits=5, shuffle=True, random_state=0)
+    cv = KFold(n_splits=5, shuffle=True, random_state=SEED)
     clf = GridSearchCV(estimator=knn, param_grid=p_grid, cv=cv)
 
     cv_scores = cross_val_score(clf, X_train, y_train, cv=cv, scoring="accuracy")
@@ -83,7 +84,7 @@ def classify_ts(X_train, X_test, y_train, y_test):
 
 
 def classify_features(X_train, X_test, y_train, y_test):
-    clf = RandomForestClassifier(max_depth=2, random_state=0)
+    clf = RandomForestClassifier(max_depth=2, random_state=SEED)
     cv_scores = cross_val_score(clf, X_train, y_train, cv=5, scoring="accuracy")
 
     print("\nAccuracy of cross-validation (Features): ", cv_scores)
@@ -112,6 +113,7 @@ if __name__ == "__main__":
         labels,
         stratify=labels,
         test_size=0.2,
+        random_state=SEED,
     )
 
     classify_features(X_train_feat, X_test_feat, y_train_feat, y_test_feat)
@@ -134,6 +136,7 @@ if __name__ == "__main__":
         labels,
         stratify=labels,
         test_size=0.2,
+        random_state=SEED,
     )
 
     classify_ts(np.array(X_train_raw), np.array(X_test_raw), y_train_raw, y_test_raw)

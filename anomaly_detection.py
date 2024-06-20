@@ -11,6 +11,7 @@ from kneed import KneeLocator
 
 PLOT_DIR = "figures/anomaly_detection"
 METHOD = "isolation_forest"
+SEED = np.random.RandomState(0)
 
 
 def determine_throws_from_filename(filename: str):
@@ -36,7 +37,7 @@ def plot_acceleration(df: pd.DataFrame, foldername: str):
 
 def get_anomalies(df: pd.DataFrame, contamination: float, method: str):
     if method == "isolation_forest":
-        clf = IsolationForest(contamination=contamination)
+        clf = IsolationForest(contamination=contamination, random_state=SEED)
         clf.fit(df[["Acc_Vector"]])
         return clf.predict(df[["Acc_Vector"]])
     if method == "lof":
@@ -257,10 +258,11 @@ def anomaly_detection(df: pd.DataFrame, foldername: str, anomaly_contamination: 
             plot_knee=True,
             method="kmeans",
         )
-        print("Predicted numbers of throws", n_clusters, "\n")
         # get cluster means
         cluster_means_with_overlaps = get_cluster_means(n_clusters, anomalies)
         cluster_means = remove_overlapping_cluster_means(cluster_means_with_overlaps)
+
+        print("Predicted numbers of throws", len(cluster_means), "\n")
 
         # mark cluster means in df
         df = pd.concat(
