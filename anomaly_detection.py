@@ -1,5 +1,4 @@
 import os
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,17 +11,15 @@ from kneed import KneeLocator
 
 PLOT_DIR = "figures/anomaly_detection"
 METHOD = "isolation_forest"
-
-dfs = []
-foldernames = []
+SEED = np.random.RandomState(0)
 
 
-def determine_num_throws_from_filename(filename: str):
+def determine_throws_from_filename(filename: str):
     description = filename.split("_")[2]
+    labels = description.split("-")[1:]
     return (
-        description.count("BH")
-        + description.count("FH")
-        + description.count("PT")
+        description.count("BH") + description.count("FH") + description.count("PT"),
+        labels,
     )
 
 
@@ -31,47 +28,45 @@ def create_directories(path: str):
         os.makedirs(path)
 
 
-def plot_acceleration(df: pd.DataFrame, df_idx: int):
-    df["FreeAccMagnitude"].plot(figsize=(8, 4), c="black")
-    plt.title(foldernames[df_idx].split("_")[2])
-    create_directories(
-        path=os.path.join(
-            PLOT_DIR, str(foldernames[df_idx]).replace(".csv", "")
-        )
-    )
+def plot_acceleration(df: pd.DataFrame, foldername: str):
+    df["Acc_Vector"].plot(figsize=(8, 4), c="black")
+    plt.title(foldername.split("_")[2])
+    create_directories(path=os.path.join(PLOT_DIR, str(foldername).replace(".csv", "")))
     plt.close()
 
 
 def get_anomalies(df: pd.DataFrame, contamination: float, method: str):
     if method == "isolation_forest":
-        clf = IsolationForest(contamination=contamination)
-        clf.fit(df[["FreeAccMagnitude"]])
-        return clf.predict(df[["FreeAccMagnitude"]])
+        clf = IsolationForest(contamination=contamination, random_state=SEED)
+        clf.fit(df[["Acc_Vector"]])
+        return clf.predict(df[["Acc_Vector"]])
     if method == "lof":
         lof = LocalOutlierFactor(n_neighbors=50)
-        pred = lof.fit_predict(df[["FreeAccMagnitude"]])
+        pred = lof.fit_predict(df[["Acc_Vector"]])
         return pred
 
 
 def plot_anomalies(
-    df: pd.DataFrame, df_idx: int, column_name: str, name_prefix: str = ""
+    df: pd.DataFrame,
+    foldername: str,
+    column_name: str,
+    name_prefix: str = "",
 ):
-    fig, ax = plt.subplots(figsize=(8, 4))
-    anomalies = df.loc[df[column_name] == -1, ["FreeAccMagnitude"]]  # Anomaly
-    print(len(anomalies))
-    ax.plot(df.index, df["FreeAccMagnitude"], color="black", label="Normal")
+    _, ax = plt.subplots(figsize=(8, 4))
+    anomalies = df.loc[df[column_name] == -1, ["Acc_Vector"]]  # Anomaly
+    ax.plot(df.index, df["Acc_Vector"], color="black", label="Normal")
     ax.scatter(
         anomalies.index,
-        anomalies["FreeAccMagnitude"],
+        anomalies["Acc_Vector"],
         color="red",
         label="Anomaly",
     )
-    plt.title(foldernames[df_idx].split("_")[2])
+    plt.title(foldername.split("_")[2])
     plt.legend()
     plt.savefig(
         fname=os.path.join(
             PLOT_DIR,
-            str(foldernames[df_idx]).replace(".csv", ""),
+            str(foldername).replace(".csv", ""),
             "anomalies" + name_prefix + ".png",
         )
     )
@@ -80,7 +75,7 @@ def plot_anomalies(
 
 def determine_num_clusters(
     anomalies: np.array,
-    df_idx: int,
+    foldername: str,
     num_max_cluster: int,
     plot_knee: bool = False,
     method: str = "kmeans",
@@ -107,7 +102,7 @@ def determine_num_clusters(
             plt.savefig(
                 fname=os.path.join(
                     PLOT_DIR,
-                    str(foldernames[df_idx]).replace(".csv", ""),
+                    str(foldername).replace(".csv", ""),
                     "knee.png",
                 )
             )
@@ -120,6 +115,7 @@ def determine_num_clusters(
             direction="decreasing",
             S=5,
         )
+
         if kl.elbow is None:
             print("Warning: No elbow detected. Opting for default = 2.")
             return 2
@@ -136,12 +132,13 @@ def determine_num_clusters(
 
 
 def clean_anomalies(anomalies: np.array):
-    # filter anomaly indices for those were at least 10 consecutive data points are included
+    # filter anomaly indices for those were at least filter_num consecutive data points are included
     delete_indices = []
-    for idx, value in enumerate(anomalies.tolist()[:-10]):
-        current_range = anomalies[idx : idx + 10]
+    filter_num = 5
+    for idx, value in enumerate(anomalies.tolist()[:-filter_num]):
+        current_range = anomalies[idx : idx + filter_num]
         # print(current_range)
-        ideal_range = np.array(range(anomalies[idx], anomalies[idx] + 10))
+        ideal_range = np.array(range(anomalies[idx], anomalies[idx] + filter_num))
         # print(ideal_range)
         if not np.equal(current_range, ideal_range).all():
             delete_indices.append(idx)
@@ -163,11 +160,11 @@ def get_cluster_means(n_clusters: int, anomalies: np.array):
     return cluster_representatives
 
 
-def plot_anomaly_groups(df: pd.DataFrame, df_idx: int):
+def plot_anomaly_groups(df: pd.DataFrame, foldername: str):
     # plot acceleration
-    fig, ax = plt.subplots(figsize=(8, 4))
-    anomalies = df.loc[df["AnomalyGroup"] == 1, ["FreeAccMagnitude"]]  # Anomaly
-    ax.plot(df.index, df["FreeAccMagnitude"], color="black", label="Normal")
+    _, ax = plt.subplots(figsize=(8, 4))
+    anomalies = df.loc[df["AnomalyGroup"] == 1, ["Acc_Vector"]]  # Anomaly
+    ax.plot(df.index, df["Acc_Vector"], color="black", label="Normal")
 
     # plot intervals to indicate anomaly groups
     for index, _ in anomalies.iterrows():
@@ -183,10 +180,8 @@ def plot_anomaly_groups(df: pd.DataFrame, df_idx: int):
         )
 
     # add legend for the color intervals
-    ax.plot(
-        [], [], color="orange", alpha=0.5, label="Anomaly Interval", linewidth=3
-    )
-    plt.title(foldernames[df_idx].split("_")[2])
+    ax.plot([], [], color="orange", alpha=0.5, label="Anomaly Interval", linewidth=3)
+    plt.title(foldername.split("_")[2])
 
     # # add pointers to the anomalies indicating that first intervals shows backhand, seocond interval shows forehand and last a putt
     # ax.annotate('Backhand', xy=(anomalies.index[0], anomalies['FreeAccMagnitude'].values[0]), xytext=(anomalies.index[0] + 100, anomalies['FreeAccMagnitude'].values[0] + 0.5),
@@ -200,93 +195,116 @@ def plot_anomaly_groups(df: pd.DataFrame, df_idx: int):
     plt.savefig(
         fname=os.path.join(
             PLOT_DIR,
-            str(foldernames[df_idx]).replace(".csv", ""),
+            str(foldername).replace(".csv", ""),
             "anomalies_grouped.png",
         )
     )
     plt.close()
 
 
-if __name__ == "__main__":
-    # sort subfolders by date
-    subfolders = os.listdir(os.path.join(os.getcwd(), "data/20240604"))
-    subfolders.sort(key=lambda x: x.split("_")[1])
+def remove_overlapping_cluster_means(centers):
+    problematic_distance = 200
+    centers = np.sort(centers)
+    non_overlapping_centers = [centers[0]]
 
-    # get list of df for all measurements in defined folder
-    for subfolder in subfolders:
-        foldernames.append(subfolder)
-        for file in os.listdir(
-            os.path.join(os.getcwd(), "data/20240604", subfolder)
-        ):
-            if file.endswith(".csv"):
-                dfs.append(
-                    pd.read_csv(
-                        os.path.join(
-                            os.getcwd(), "data/20240604", subfolder, file
-                        ),
-                        skiprows=11,
-                    )
-                )
+    for i in range(1, len(centers)):
+        # If the current center does not overlap with the last non-overlapping center, add it to the list
+        if centers[i] > non_overlapping_centers[-1] + problematic_distance:
+            non_overlapping_centers.append(centers[i])
 
-    for df_idx, df in enumerate(dfs):
-        # get ground thruth about number of throws from filename
-        print("{foldername}:".format(foldername=foldernames[df_idx]))
-        num_throws = determine_num_throws_from_filename(
-            filename=foldernames[df_idx]
-        )
-        print("Number of throws: ", num_throws)
+    return np.array(non_overlapping_centers)
 
-        df["FreeAccMagnitude"] = (
-            df["FreeAcc_X"] ** 2 + df["FreeAcc_Y"] ** 2 + df["FreeAcc_Z"] ** 2
-        ) ** 0.5
-        # df["FreeAccMagnitude"] = df["FreeAccMagnitude"].rolling(window=10, center=False).mean()
-        # df = df.dropna().reset_index()
 
-        # plot acceleration for inspection
-        plot_acceleration(df, df_idx)
+def anomaly_detection(df: pd.DataFrame, foldername: str, anomaly_contamination: float):
+    # get ground thruth about number of throws from filename
+    print("{foldername}:".format(foldername=foldername))
+    num_throws, labels = determine_throws_from_filename(filename=foldername)
+    print("Number of throws: ", num_throws)
+    df["Acc_Vector"] = (
+        df["FreeAcc_X"] ** 2 + df["FreeAcc_Y"] ** 2 + df["FreeAcc_Z"] ** 2
+    ) ** 0.5
+    # df["FreeAccMagnitude"] = df["FreeAccMagnitude"].rolling(window=10, center=False).mean()
+    # df = df.dropna().reset_index()
 
-        # determine anomalies using Isolation Forest
-        df["Anomaly"] = get_anomalies(df, contamination=0.01, method=METHOD)
-        # print(df["Anomaly"].value_counts())
-        plot_anomalies(df, df_idx, name_prefix="_raw", column_name="Anomaly")
+    # plot acceleration for inspection
+    plot_acceleration(df, foldername)
 
-        # get and clean anomalies
-        anomalies = np.array(df.loc[df["Anomaly"] == -1].index.tolist())
-        anomalies = clean_anomalies(anomalies)
-        df["CleanedAnomaly"] = 1
-        # print(df.index)
-        df.loc[anomalies.tolist(), "CleanedAnomaly"] = -1
-        anomalies = anomalies.reshape(-1, 1)
+    # determine anomalies using Isolation Forest
+    df["Anomaly"] = get_anomalies(
+        df, contamination=anomaly_contamination, method=METHOD
+    )
+    # print(df["Anomaly"].value_counts())
+    plot_anomalies(df, foldername, name_prefix="_raw", column_name="Anomaly")
 
-        # plot cleaned anomalies
-        plot_anomalies(
-            df, df_idx, name_prefix="_filtered", column_name="CleanedAnomaly"
-        )
+    # get and clean anomalies
+    anomalies = np.array(df.loc[df["Anomaly"] == -1].index.tolist())
+    anomalies = clean_anomalies(anomalies)
+    df["CleanedAnomaly"] = 1
+    # print(df.index)
+    df.loc[anomalies.tolist(), "CleanedAnomaly"] = -1
+    anomalies = anomalies.reshape(-1, 1)
 
-        # determine number of clusters
+    # plot cleaned anomalies
+    plot_anomalies(
+        df, foldername, name_prefix="_filtered", column_name="CleanedAnomaly"
+    )
+
+    # determine number of clusters
+    if len(anomalies) >= 2:
         n_clusters = determine_num_clusters(
             anomalies=anomalies,
             num_max_cluster=len(anomalies),
+            foldername=foldername,
             plot_knee=True,
-            df_idx=df_idx,
             method="kmeans",
         )
-        print("Predicted numbers of throws", n_clusters, "\n")
-
         # get cluster means
-        cluster_means = get_cluster_means(n_clusters, anomalies)
+        cluster_means_with_overlaps = get_cluster_means(n_clusters, anomalies)
+        cluster_means = remove_overlapping_cluster_means(cluster_means_with_overlaps)
+
+        print("Predicted numbers of throws", len(cluster_means), "\n")
 
         # mark cluster means in df
         df = pd.concat(
             [
                 df,
-                pd.DataFrame(
-                    np.zeros(shape=(len(df), 1)), columns=["AnomalyGroup"]
-                ),
+                pd.DataFrame(np.zeros(shape=(len(df), 1)), columns=["AnomalyGroup"]),
             ],
             axis=1,
         )
         df.loc[cluster_means, "AnomalyGroup"] = 1
 
         # plot anomalies groups
-        plot_anomaly_groups(df=df, df_idx=df_idx)
+        plot_anomaly_groups(df=df, foldername=foldername)
+
+    else:
+        print("Too few anomalies found!")
+        cluster_means, labels = None, None
+
+    return cluster_means, labels
+
+
+if __name__ == "__main__":
+    # sort subfolders by date
+    path = "data/20240612"
+    dfs = []
+    foldernames = []
+    subfolders = os.listdir(os.path.join(os.getcwd(), path))
+    subfolders.sort(key=lambda x: x.split("_")[1])
+
+    # get list of df for all measurements in defined folder
+    for subfolder in subfolders:
+        if not subfolder.startswith("2024"):
+            continue
+        foldernames.append(subfolder)
+        for file in os.listdir(os.path.join(os.getcwd(), path, subfolder)):
+            if file.endswith(".csv"):
+                dfs.append(
+                    pd.read_csv(
+                        os.path.join(os.getcwd(), path, subfolder, file),
+                        skiprows=11,
+                    )
+                )
+
+    for df_idx, df in enumerate(dfs):
+        _, _ = anomaly_detection(df, foldernames[df_idx], 0.01)
