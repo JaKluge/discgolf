@@ -12,7 +12,6 @@ from tslearn.neighbors import KNeighborsTimeSeriesClassifier
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import KFold, GridSearchCV
 
-
 # from sktime.classification.ensemble import TimeSeriesForestClassifier
 # from sklearn.pipeline import Pipeline
 # from sklearn.preprocessing import StandardScaler
@@ -20,13 +19,21 @@ from sklearn.model_selection import KFold, GridSearchCV
 
 PLOT_DIR = "figures/anomaly_detection"
 DF_DIR = "data/splitted_throws"
-SEED = np.random.RandomState(0)
+SEED = np.random.RandomState(42)
 
+
+def num_values_above_threshold(x, threshold):
+    return np.where(x >= threshold)[0].size
 
 # this takes a list of dataframes/throws and extracts features for every throw
 def feature_extraction(throw_set: np.array):
     feature_settings = settings.MinimalFCParameters()
     # feature_settings = {"mean": None, "standard_deviation": None, "length": None}
+
+    # for column Acc_Vector, also compute amount of values above 50, 100 and 200
+    specific_feature_settings = {"Acc_Vector": feature_settings}
+    specific_feature_settings["Acc_Vector"][num_values_above_threshold] = [{"threshold": 50}, {"threshold": 100}, {"threshold": 200}]
+
     data = []
     df_concat = pd.DataFrame(data)
     for idx, throw in enumerate(throw_set):
@@ -48,6 +55,7 @@ def feature_extraction(throw_set: np.array):
         ],
         column_id="id",
         default_fc_parameters=feature_settings,
+        kind_to_fc_parameters=specific_feature_settings,
     )
     return throw_features
 
