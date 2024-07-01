@@ -106,7 +106,7 @@ def collect_data(paths, anomaly_contanimations):
             print("Throws were not identifyed correctly\n")
 
     print(
-        f"Number of identified forhand throws: {sum(throw['Label'].iloc[0] == 'FH' for throw in throws_list)}"
+        f"Number of identified forehand throws: {sum(throw['Label'].iloc[0] == 'FH' for throw in throws_list)}"
     )
     print(
         f"Number of identified backhand throws: {sum(throw['Label'].iloc[0] == 'BH' for throw in throws_list)}"
@@ -157,7 +157,7 @@ if __name__ == "__main__":
     # paths = ["data/20240612", "data/20240604", "data/20240608", "data/20240619"]
 
     anomaly_contaminations = [0.03, 0.04, 0.03]
-    paths = ["data/20240612", "data/20240619", "data/manually_cutted_throws"]
+    paths = ["data/20240612", "data/20240619", "data/20240623", "data/manually_cutted_throws"]
 
     throws_list = collect_data(paths, anomaly_contaminations)
 
