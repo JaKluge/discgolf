@@ -7,14 +7,16 @@ from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
+import torch.nn.functional as F
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score
+import optuna
 
 from classification import feature_extraction, read_csv_throws, create_ts_df
 
 PLOT_DIR = "figures/anomaly_detection"
 DF_DIR = "data/splitted_throws"
-SEED = np.random.RandomState(0)
+torch.manual_seed(42)
 
 
 class LSTMClassifier(pl.LightningModule):
@@ -22,6 +24,7 @@ class LSTMClassifier(pl.LightningModule):
         self, input_dim, hidden_dim, output_dim, n_layers, learning_rate=1e-3
     ):
         super(LSTMClassifier, self).__init__()
+        self.name = "LSTM"
         self.hidden_dim = hidden_dim
         self.n_layers = n_layers
         self.lstm = nn.LSTM(input_dim, hidden_dim, n_layers, batch_first=True)
@@ -30,7 +33,6 @@ class LSTMClassifier(pl.LightningModule):
         self.criterion = nn.CrossEntropyLoss()
 
     def forward(self, x):
-        print(x.size())
         h0 = torch.zeros(self.n_layers, x.size(0), self.hidden_dim).to(
             self.device
         )
@@ -43,8 +45,51 @@ class LSTMClassifier(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         x, y = batch
-        print(x.size())
-        print(y.size())
+        y_hat = self(x)
+        loss = self.criterion(y_hat, y)
+        return loss
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        return optimizer
+
+
+class CNNClassifier(pl.LightningModule):
+    def __init__(self, input_channels, output_dim, learning_rate=1e-3):
+        super(CNNClassifier, self).__init__()
+        self.name = "CNN"
+        self.conv1 = nn.Conv2d(
+            input_channels, 16, kernel_size=3, stride=1, padding=1
+        )
+        self.conv2 = nn.Conv2d(16, 16, kernel_size=3, stride=1, padding=1)
+        self.pool = nn.MaxPool1d(kernel_size=2, stride=2, padding=0)
+        self.fc1 = nn.Linear(160, 128)
+        self.fc2 = nn.Linear(128, output_dim)
+        self.learning_rate = learning_rate
+        self.criterion = nn.CrossEntropyLoss()
+
+    def forward(self, x):
+        # transform into (num_samples, length time series, num_features)
+        x = x.reshape(x.shape[0], 1, x.shape[1], x.shape[2])
+        print(x.shape)
+        x = self.conv1(x)
+        x = F.relu(x)
+        print(x.shape)
+        x = self.pool(x)
+        print(x.shape)
+        x = self.conv2(x)
+        x = F.relu(x)
+        print(x.shape)
+        x = self.pool(x)
+        print(x.shape)
+        x = torch.flatten(x, 1)  # flatten all dimensions except batch
+        print(x.shape)
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+
+    def training_step(self, batch, batch_idx):
+        x, y = batch
         y_hat = self(x)
         loss = self.criterion(y_hat, y)
         return loss
@@ -61,17 +106,11 @@ def prepare_data(
     y_train = le.fit_transform(y_train_raw)
     y_test = le.transform(y_test_raw)
 
-    # print(type(X_train_raw))
-    # print(X_train_raw.shape)
-    # print(type(y_train_raw))
-    # print(np.array(y_train_raw).shape)
-
     X_train = torch.tensor(X_train_raw, dtype=torch.float32)
     X_test = torch.tensor(X_test_raw, dtype=torch.float32)
     y_train = torch.tensor(np.array(y_train), dtype=torch.long)
     y_test = torch.tensor(np.array(y_test), dtype=torch.long)
 
-    # Reshape X_train and X_test to match LSTM input expectations (batch_size, sequence_length, input_dim)
     X_train = X_train.view(X_train.size(0), -1, 7)
     X_test = X_test.view(X_test.size(0), -1, 7)
 
@@ -86,23 +125,31 @@ def prepare_data(
     return train_loader, test_loader, le
 
 
-def classify_lstm(X_train_raw, X_test_raw, y_train_raw, y_test_raw):
+def train_lstm(train_loader):
     input_dim = 7
     hidden_dim = 64
     output_dim = len(set(y_train_raw))
-    n_layers = 2
-    batch_size = 32
+    n_layers = 3
     n_epochs = 10
 
-    train_loader, test_loader, label_encoder = prepare_data(
-        X_train_raw, X_test_raw, y_train_raw, y_test_raw, batch_size
-    )
-
-    model = LSTMClassifier(input_dim, hidden_dim, output_dim, n_layers)
+    lstm = LSTMClassifier(input_dim, hidden_dim, output_dim, n_layers)
     trainer = Trainer(max_epochs=n_epochs)
-    trainer.fit(model, train_loader, test_loader)
+    trainer.fit(lstm, train_loader)
+    return lstm
 
-    # Evaluation
+
+def train_cnn(train_loader):
+    input_channels = 1
+    output_dim = len(set(y_train_raw))
+    n_epochs = 10
+
+    cnn = CNNClassifier(input_channels, output_dim)
+    trainer = Trainer(max_epochs=n_epochs)
+    trainer.fit(cnn, train_loader)
+    return cnn
+
+
+def evaluate_model(model, test_loader):
     model.eval()
     y_true = []
     y_pred = []
@@ -115,7 +162,8 @@ def classify_lstm(X_train_raw, X_test_raw, y_train_raw, y_test_raw):
             y_pred.extend(y_hat.tolist())
 
     accuracy = accuracy_score(y_true, y_pred)
-    print(f"Test Accuracy: {accuracy:.4f}")
+    print(f"Test Accuracy of {model.name}: {accuracy:.4f}\n")
+    return accuracy
 
 
 if __name__ == "__main__":
@@ -144,8 +192,22 @@ if __name__ == "__main__":
         labels,
         stratify=labels,
         test_size=0.2,
-        random_state=SEED,
+        random_state=42,
     )
 
+    batch_size = 16
+    train_loader, test_loader, label_encoder = prepare_data(
+        X_train_raw, X_test_raw, y_train_raw, y_test_raw, batch_size
+    )
+
+    # # create optuna study
+    # study = optuna.create_study(direction='maximize')
+    # study.optimize(classify_lstm, n_trials=100)
+
     # classify using LSTM neural network
-    classify_lstm(X_train_raw, X_test_raw, y_train_raw, y_test_raw)
+    lstm = train_lstm(train_loader)
+    evaluate_model(lstm, test_loader)
+
+    # classify using CNN neural network
+    # cnn = train_cnn(train_loader)
+    # evaluate_model(cnn, test_loader)
