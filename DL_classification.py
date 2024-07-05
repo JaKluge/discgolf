@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader, TensorDataset
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 import torch.nn.functional as F
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 from sklearn.metrics import accuracy_score
 import optuna
 
@@ -58,32 +58,32 @@ class CNNClassifier(pl.LightningModule):
     def __init__(self, input_channels, output_dim, learning_rate=1e-3):
         super(CNNClassifier, self).__init__()
         self.name = "CNN"
-        self.conv1 = nn.Conv2d(
+        self.conv1 = nn.Conv1d(
             input_channels, 16, kernel_size=3, stride=1, padding=1
         )
-        self.conv2 = nn.Conv2d(16, 16, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv1d(16, 32, kernel_size=3, stride=1, padding=1)
         self.pool = nn.MaxPool1d(kernel_size=2, stride=2, padding=0)
-        self.fc1 = nn.Linear(160, 128)
+        self.fc1 = nn.Linear(320, 128)
         self.fc2 = nn.Linear(128, output_dim)
         self.learning_rate = learning_rate
         self.criterion = nn.CrossEntropyLoss()
 
     def forward(self, x):
-        # transform into (num_samples, length time series, num_features)
-        x = x.reshape(x.shape[0], 1, x.shape[1], x.shape[2])
-        print(x.shape)
+        # transform into (num_samples, num_features, num_timesteps)
+        x = x.reshape(x.shape[0], x.shape[2], x.shape[1])
+        # print(x.shape)
         x = self.conv1(x)
         x = F.relu(x)
-        print(x.shape)
+        # print(x.shape)
         x = self.pool(x)
-        print(x.shape)
+        # print(x.shape)
         x = self.conv2(x)
         x = F.relu(x)
-        print(x.shape)
+        # print(x.shape)
         x = self.pool(x)
-        print(x.shape)
+        # print(x.shape)
         x = torch.flatten(x, 1)  # flatten all dimensions except batch
-        print(x.shape)
+        # print(x.shape)
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return x
@@ -100,19 +100,29 @@ class CNNClassifier(pl.LightningModule):
 
 
 def prepare_data(
-    X_train_raw, X_test_raw, y_train_raw, y_test_raw, batch_size=32
+    X_train, X_test, y_train, y_test, batch_size=32
 ):
     le = LabelEncoder()
     y_train = le.fit_transform(y_train_raw)
     y_test = le.transform(y_test_raw)
 
-    X_train = torch.tensor(X_train_raw, dtype=torch.float32)
-    X_test = torch.tensor(X_test_raw, dtype=torch.float32)
+    X_train = X_train.reshape(X_train.shape[0], -1, 7)
+    X_test = X_test.reshape(X_test.shape[0], -1, 7)
+
+    # scaler = MinMaxScaler(feature_range=(0, 1))
+    # print(X_train.shape)
+    # print(type(X_train))
+    # X_train = scaler.fit_transform(X_train.reshape(-1, 7)).reshape(X_train.shape)
+    # X_test = scaler.transform(X_test.reshape(-1, 7)).reshape(X_test.shape)
+    # print(X_train.shape)
+    # print(type(X_train))
+    # print(X_train[:, :, 0].max())
+    # print(X_train[:, 0, :].max())
+
+    X_train = torch.tensor(X_train, dtype=torch.float32)
+    X_test = torch.tensor(X_test, dtype=torch.float32)
     y_train = torch.tensor(np.array(y_train), dtype=torch.long)
     y_test = torch.tensor(np.array(y_test), dtype=torch.long)
-
-    X_train = X_train.view(X_train.size(0), -1, 7)
-    X_test = X_test.view(X_test.size(0), -1, 7)
 
     train_dataset = TensorDataset(X_train, y_train)
     test_dataset = TensorDataset(X_test, y_test)
@@ -139,7 +149,7 @@ def train_lstm(train_loader):
 
 
 def train_cnn(train_loader):
-    input_channels = 1
+    input_channels = 7
     output_dim = len(set(y_train_raw))
     n_epochs = 10
 
@@ -187,6 +197,8 @@ if __name__ == "__main__":
         ],
     )
 
+    print(throw_df.shape)
+
     X_train_raw, X_test_raw, y_train_raw, y_test_raw = train_test_split(
         throw_df,
         labels,
@@ -209,5 +221,5 @@ if __name__ == "__main__":
     evaluate_model(lstm, test_loader)
 
     # classify using CNN neural network
-    # cnn = train_cnn(train_loader)
-    # evaluate_model(cnn, test_loader)
+    cnn = train_cnn(train_loader)
+    evaluate_model(cnn, test_loader)
