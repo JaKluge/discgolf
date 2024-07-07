@@ -286,7 +286,7 @@ def anomaly_detection(df: pd.DataFrame, foldername: str, anomaly_contamination: 
 
 if __name__ == "__main__":
     # sort subfolders by date
-    path = "data/20240616"
+    path = "data/20240626"
     dfs = []
     foldernames = []
     subfolders = os.listdir(os.path.join(os.getcwd(), path))

@@ -156,8 +156,8 @@ if __name__ == "__main__":
     # anomaly_contaminations = [0.03, 0.01, 0.04, 0.04]
     # paths = ["data/20240612", "data/20240604", "data/20240608", "data/20240619"]
 
-    anomaly_contaminations = [0.03, 0.03, 0.04, 0.03]
-    paths = ["data/20240612", "data/20240616", "data/20240619", "data/manually_cutted_throws"]
+    anomaly_contaminations = [0.03, 0.03, 0.04, 0.03, 0.03]
+    paths = ["data/20240612", "data/20240616", "data/20240619", "data/20240626", "data/manually_cutted_throws"]
 
     throws_list = collect_data(paths, anomaly_contaminations)
 
