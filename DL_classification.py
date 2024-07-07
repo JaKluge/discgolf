@@ -53,37 +53,26 @@ class LSTMClassifier(pl.LightningModule):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         return optimizer
 
-
 class CNNClassifier(pl.LightningModule):
-    def __init__(self, input_channels, output_dim, learning_rate=1e-3):
+    def __init__(self, input_channels, input_channel_size, output_dim, learning_rate=1e-3):
         super(CNNClassifier, self).__init__()
         self.name = "CNN"
         self.conv1 = nn.Conv1d(
             input_channels, 16, kernel_size=3, stride=1, padding=1
         )
-        self.conv2 = nn.Conv1d(16, 32, kernel_size=3, stride=1, padding=1)
-        self.pool = nn.MaxPool1d(kernel_size=2, stride=2, padding=0)
-        self.fc1 = nn.Linear(320, 128)
-        self.fc2 = nn.Linear(128, output_dim)
+        self.pool = nn.MaxPool1d(kernel_size=2, padding=0)
+        self.fc1 = nn.Linear(int(16*(input_channel_size/self.pool.kernel_size)), 32)
+        self.fc2 = nn.Linear(32, output_dim)
         self.learning_rate = learning_rate
         self.criterion = nn.CrossEntropyLoss()
 
     def forward(self, x):
         # transform into (num_samples, num_features, num_timesteps)
         x = x.reshape(x.shape[0], x.shape[2], x.shape[1])
-        # print(x.shape)
         x = self.conv1(x)
         x = F.relu(x)
-        # print(x.shape)
         x = self.pool(x)
-        # print(x.shape)
-        x = self.conv2(x)
-        x = F.relu(x)
-        # print(x.shape)
-        x = self.pool(x)
-        # print(x.shape)
         x = torch.flatten(x, 1)  # flatten all dimensions except batch
-        # print(x.shape)
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return x
@@ -153,7 +142,7 @@ def train_cnn(train_loader):
     output_dim = len(set(y_train_raw))
     n_epochs = 10
 
-    cnn = CNNClassifier(input_channels, output_dim)
+    cnn = CNNClassifier(input_channels, throws_list[0].shape[0], output_dim)
     trainer = Trainer(max_epochs=n_epochs)
     trainer.fit(cnn, train_loader)
     return cnn
