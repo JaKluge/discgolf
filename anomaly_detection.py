@@ -280,13 +280,13 @@ def anomaly_detection(df: pd.DataFrame, foldername: str, anomaly_contamination: 
     else:
         print("Too few anomalies found!")
         cluster_means, labels = None, None
-
+    
     return cluster_means, labels
 
 
 if __name__ == "__main__":
     # sort subfolders by date
-    path = "data/20240612"
+    path = "data/20240604"
     dfs = []
     foldernames = []
     subfolders = os.listdir(os.path.join(os.getcwd(), path))
