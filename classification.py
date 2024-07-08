@@ -66,8 +66,8 @@ def create_ts_df(throw_list, columns):
 
     ts_data = np.empty((n_samples, n_timestamps, n_features))
     for i, throw in enumerate(throw_list):
-        ts_data[i] = throw[columns].values
-
+        if ts_data[i].shape[0] == throw[columns].values.shape[0]:
+            ts_data[i] = throw[columns].values
     return ts_data
 
 
