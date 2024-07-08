@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 import glob
 import os
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 from tsfresh.feature_extraction import extract_features
 from tsfresh.feature_extraction import settings
@@ -9,11 +11,13 @@ from tsfresh.feature_extraction import settings
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import KFold
+from sklearn.metrics import confusion_matrix
 
 from sktime.classification.ensemble import BaggingClassifier
 from sktime.classification.kernel_based import RocketClassifier
 from sktime.classification.shapelet_based import ShapeletTransformClassifier
 from tslearn.neighbors import KNeighborsTimeSeriesClassifier
+
 
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
@@ -147,6 +151,32 @@ def read_csv_throws():
     return throws_list
 
 
+def plot_confusion_matrix(y_true, y_pred, title):
+    cm = confusion_matrix(y_true, y_pred)
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(
+        cm,
+        annot=True,
+        fmt="d",
+        cmap="Blues",
+        xticklabels=np.unique(y_true),
+        yticklabels=np.unique(y_true),
+    )
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
+    plt.title(title)
+    plt.show()
+
+
+def evaluate_naive_bayes(X_train, X_test, y_train, y_test):
+    nb_classifier = GaussianNB()
+    nb_classifier.fit(X_train, y_train)
+    y_pred = nb_classifier.predict(X_test)
+
+    # Calculate and print the confusion matrix
+    plot_confusion_matrix(y_test, y_pred, title="Confusion Matrix for Naive Bayes")
+
+
 if __name__ == "__main__":
 
     throws_list = read_csv_throws()
@@ -178,13 +208,14 @@ if __name__ == "__main__":
         ],
     )
 
-    X_train_raw, X_test_raw, y_train_raw, y_test_raw = train_test_split(
-        throw_df,
-        labels,
-        stratify=labels,
-        test_size=0.2,
-        random_state=SEED,
-    )
+    evaluate_naive_bayes(X_train_feat, X_test_feat, y_train_feat, y_test_feat)
+    # X_train_raw, X_test_raw, y_train_raw, y_test_raw = train_test_split(
+    #     throw_df,
+    #     labels,
+    #     stratify=labels,
+    #     test_size=0.2,
+    #     random_state=SEED,
+    # )
 
-    results_ts = classify_ts(np.array(X_train_raw), np.array(y_train_raw))
-    print(results_ts)
+    # results_ts = classify_ts(np.array(X_train_raw), np.array(y_train_raw))
+    # print(results_ts)
