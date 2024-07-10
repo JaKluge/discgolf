@@ -47,15 +47,6 @@ def manual_cutter(foldername, start_idx, end_idx, label):
 
 if __name__ == "__main__":
 
-    manual_cutter("20240604_191205_JZ-BH-BH-PT-PT_outside", 740, 760, "BH")
-    manual_cutter("20240604_191205_JZ-BH-BH-PT-PT_outside", 6124, 6324, "BH")
-    manual_cutter("20240604_191205_JZ-BH-BH-PT-PT_outside", 12250, 12450, "PT")
-    manual_cutter("20240604_191205_JZ-BH-BH-PT-PT_outside", 13000, 13200, "PT")
-
-    manual_cutter("20240604_195726_CK-FH-PT-PT_outside", 1500, 1700, "FH")
-    manual_cutter("20240604_195726_CK-FH-PT-PT_outside", 15500, 15700, "PT")
-    manual_cutter("20240604_195726_CK-FH-PT-PT_outside", 17000, 19000, "PT")
-
     manual_cutter("20240612_201038_U-BH-FH-PT_outside", 300, 500, "BH")
     manual_cutter("20240612_201038_U-BH-FH-PT_outside", 1000, 1200, "FH")
     manual_cutter("20240612_201038_U-BH-FH-PT_outside", 1550, 1750, "PT")

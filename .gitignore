@@ -12,5 +12,4 @@
 **.yaml
 **.ckpt
 *.pyc
-**.csv
 /wandb
