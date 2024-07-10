@@ -9,14 +9,14 @@ import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 import torch.nn.functional as F
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
 import optuna
 
 from classification import feature_extraction, read_csv_throws, create_ts_df
 
 PLOT_DIR = "figures/anomaly_detection"
 DF_DIR = "data/splitted_throws"
-torch.manual_seed(42)
+torch.manual_seed(41)
 
 
 class LSTMClassifier(pl.LightningModule):
@@ -161,7 +161,14 @@ def evaluate_model(model, test_loader):
             y_pred.extend(y_hat.tolist())
 
     accuracy = accuracy_score(y_true, y_pred)
-    print(f"Test Accuracy of {model.name}: {accuracy:.4f}\n")
+    recall = recall_score(y_true, y_pred, average="weighted")
+    precision = precision_score(y_true, y_pred, average="weighted")
+    f1 = f1_score(y_true, y_pred, average="weighted")
+
+    print(f"\nTest Accuracy of {model.name}: {accuracy:.4f}")
+    print(f"Test Recall of {model.name}: {recall:.4f}")
+    print(f"Test Precision of {model.name}: {precision:.4f}")
+    print(f"Test F1 Score of {model.name}: {f1:.4f}\n")
     return accuracy
 
 
@@ -196,7 +203,7 @@ if __name__ == "__main__":
         random_state=42,
     )
 
-    batch_size = 16
+    batch_size = 4
     train_loader, test_loader, label_encoder = prepare_data(
         X_train_raw, X_test_raw, y_train_raw, y_test_raw, batch_size
     )
@@ -206,9 +213,11 @@ if __name__ == "__main__":
     # study.optimize(classify_lstm, n_trials=100)
 
     # classify using LSTM neural network
+    print("Training LSTM model ...")
     lstm = train_lstm(train_loader)
     evaluate_model(lstm, test_loader)
 
     # classify using CNN neural network
+    print("Training CNN model ...")
     cnn = train_cnn(train_loader)
     evaluate_model(cnn, test_loader)
