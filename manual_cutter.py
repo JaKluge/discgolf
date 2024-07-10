@@ -54,6 +54,10 @@ if __name__ == "__main__":
     manual_cutter("20240612_202806_U-BH-FH-PT_outside", 500, 650, "FH")
     manual_cutter("20240612_202806_U-BH-FH-PT_outside", 900, 1050, "PT")
 
+    manual_cutter("20240612_201038_U-BH-FH-PT_outside", 250, 500, "BH")
+    manual_cutter("20240612_201038_U-BH-FH-PT_outside", 1000, 1250, "FH")
+    manual_cutter("20240612_201038_U-BH-FH-PT_outside", 1500, 1750, "PT")
+
     manual_cutter("20240623_141340_am-BH-FH_outside", 1550, 1750, "BH")
     manual_cutter("20240623_141340_am-BH-FH_outside", 2700, 2900, "FH")
 

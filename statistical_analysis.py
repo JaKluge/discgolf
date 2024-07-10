@@ -94,14 +94,14 @@ def equal_variance_test(sample_1, sample_2, alpha=0.05):
     return reject, p_value
 
 
-def compare_all(path, parametric=False):
+def compare_all(path, mode, parametric=False):
     regarded_features = ["Acc_Vector", "FreeAcc_X", "FreeAcc_Y", "FreeAcc_Z"]
     # regarded_features = ["Euler_X", "Euler_Y", "Euler_Z"]
     for feature in regarded_features:
         paired = False
         print(f"{feature}\n")
 
-        BH, FH, PT = create_sample_groups(path, "above_threshold_duration", feature)
+        BH, FH, PT = create_sample_groups(path, mode, feature)
 
         sample_pairs = [
             (BH, FH),
@@ -251,6 +251,7 @@ if __name__ == "__main__":
     reject, p_value = fisher_exact_test([BH, FH], 200)
 
     multi_proportions([BH, FH, PT], 100)
+
 
     # verify_normal_dist(BH.iloc[:, 0])
 
