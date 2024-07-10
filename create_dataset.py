@@ -103,7 +103,7 @@ def collect_data(paths, anomaly_contanimations):
                 vis_of_throw(throw, foldernames[game_idx], throw_idx)
 
         else:
-            print("Throws were not identifyed correctly\n")
+            print("Throws were not identifyed correctly for {folder}\n".format(folder=foldernames[game_idx]))
 
     print(
         f"Number of identified forehand throws: {sum(throw['Label'].iloc[0] == 'FH' for throw in throws_list)}"

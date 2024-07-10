@@ -9,14 +9,14 @@ import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 import torch.nn.functional as F
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
 import optuna
 
 from classification import feature_extraction, read_csv_throws, create_ts_df
 
 PLOT_DIR = "figures/anomaly_detection"
 DF_DIR = "data/splitted_throws"
-torch.manual_seed(42)
+torch.manual_seed(41)
 
 
 class LSTMClassifier(pl.LightningModule):
@@ -53,37 +53,26 @@ class LSTMClassifier(pl.LightningModule):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         return optimizer
 
-
 class CNNClassifier(pl.LightningModule):
-    def __init__(self, input_channels, output_dim, learning_rate=1e-3):
+    def __init__(self, input_channels, input_channel_size, output_dim, learning_rate=1e-3):
         super(CNNClassifier, self).__init__()
         self.name = "CNN"
         self.conv1 = nn.Conv1d(
             input_channels, 16, kernel_size=3, stride=1, padding=1
         )
-        self.conv2 = nn.Conv1d(16, 32, kernel_size=3, stride=1, padding=1)
-        self.pool = nn.MaxPool1d(kernel_size=2, stride=2, padding=0)
-        self.fc1 = nn.Linear(320, 128)
-        self.fc2 = nn.Linear(128, output_dim)
+        self.pool = nn.MaxPool1d(kernel_size=2, padding=0)
+        self.fc1 = nn.Linear(int(16*(input_channel_size/self.pool.kernel_size)), 32)
+        self.fc2 = nn.Linear(32, output_dim)
         self.learning_rate = learning_rate
         self.criterion = nn.CrossEntropyLoss()
 
     def forward(self, x):
         # transform into (num_samples, num_features, num_timesteps)
         x = x.reshape(x.shape[0], x.shape[2], x.shape[1])
-        # print(x.shape)
         x = self.conv1(x)
         x = F.relu(x)
-        # print(x.shape)
         x = self.pool(x)
-        # print(x.shape)
-        x = self.conv2(x)
-        x = F.relu(x)
-        # print(x.shape)
-        x = self.pool(x)
-        # print(x.shape)
         x = torch.flatten(x, 1)  # flatten all dimensions except batch
-        # print(x.shape)
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return x
@@ -153,7 +142,7 @@ def train_cnn(train_loader):
     output_dim = len(set(y_train_raw))
     n_epochs = 10
 
-    cnn = CNNClassifier(input_channels, output_dim)
+    cnn = CNNClassifier(input_channels, throws_list[0].shape[0], output_dim)
     trainer = Trainer(max_epochs=n_epochs)
     trainer.fit(cnn, train_loader)
     return cnn
@@ -172,7 +161,14 @@ def evaluate_model(model, test_loader):
             y_pred.extend(y_hat.tolist())
 
     accuracy = accuracy_score(y_true, y_pred)
-    print(f"Test Accuracy of {model.name}: {accuracy:.4f}\n")
+    recall = recall_score(y_true, y_pred, average="weighted")
+    precision = precision_score(y_true, y_pred, average="weighted")
+    f1 = f1_score(y_true, y_pred, average="weighted")
+
+    print(f"\nTest Accuracy of {model.name}: {accuracy:.4f}")
+    print(f"Test Recall of {model.name}: {recall:.4f}")
+    print(f"Test Precision of {model.name}: {precision:.4f}")
+    print(f"Test F1 Score of {model.name}: {f1:.4f}\n")
     return accuracy
 
 
@@ -207,7 +203,7 @@ if __name__ == "__main__":
         random_state=42,
     )
 
-    batch_size = 16
+    batch_size = 4
     train_loader, test_loader, label_encoder = prepare_data(
         X_train_raw, X_test_raw, y_train_raw, y_test_raw, batch_size
     )
@@ -217,9 +213,11 @@ if __name__ == "__main__":
     # study.optimize(classify_lstm, n_trials=100)
 
     # classify using LSTM neural network
+    print("Training LSTM model ...")
     lstm = train_lstm(train_loader)
     evaluate_model(lstm, test_loader)
 
     # classify using CNN neural network
+    print("Training CNN model ...")
     cnn = train_cnn(train_loader)
     evaluate_model(cnn, test_loader)
