@@ -126,7 +126,8 @@ def visualise_all(throw_set, name):
         throw["SampleTimeFine"] /= 1000
         if time is None:
             time = throw.SampleTimeFine
-        plt.plot(time, throw["Acc_Vector"], linewidth=1)
+        if len(time) == len(throw["Acc_Vector"]):
+            plt.plot(time, throw["Acc_Vector"], linewidth=1)
 
     plt.xlabel("Time (ms)")
     plt.ylabel("Acceleration (m/s²)")
@@ -153,11 +154,15 @@ def remove_files_in_directory(directory):
 
 if __name__ == "__main__":
     # best contanimation values for the individual game sets
-    # anomaly_contaminations = [0.03, 0.01, 0.04, 0.04]
-    # paths = ["data/20240612", "data/20240604", "data/20240608", "data/20240619"]
-
-    anomaly_contaminations = [0.03, 0.01, 0.04, 0.04, 0.02]
-    paths = ["data/20240612", "data/20240604", "data/20240608", "data/20240619", "data/20240623", "data/manually_cutted_throws"]
+    anomaly_contaminations = [0.03, 0.04, 0.04, 0.02, 0.03, 0.03]
+    paths = [
+        "data/20240612",
+        "data/20240616",
+        "data/20240619",
+        "data/20240623",
+        "data/20240626",
+        "data/manually_cutted_throws",
+    ]
 
     throws_list = collect_data(paths, anomaly_contaminations)
 
