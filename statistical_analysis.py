@@ -5,6 +5,12 @@ import matplotlib.pyplot as plt
 import glob
 from scipy import stats
 from statsmodels.stats.power import tt_ind_solve_power, tt_solve_power
+import rpy2.robjects.numpy2ri
+
+rpy2.robjects.numpy2ri.activate()
+from rpy2.robjects.packages import importr
+
+stats_r = importr("stats")
 
 
 def create_dfs(path, compare, mode="max_acceleration"):
@@ -23,12 +29,22 @@ def create_dfs(path, compare, mode="max_acceleration"):
                     values = df.max()
                 elif mode == "variance_gyroscope":
                     values = df.var()
+                elif mode == "above_threshold_duration":
+                    values = get_above_threshold_duration(df["Acc_Vector"], 100)
                 values_list.append(values)
 
         values_df = pd.DataFrame(values_list)
         dfs_to_compare.append(values_df)
 
     return dfs_to_compare
+
+
+def get_above_threshold_duration(acceleration_data, threshold):
+    above_threshold_duration = 0
+    for acceleration in acceleration_data:
+        if acceleration > threshold:
+            above_threshold_duration += 1
+    return above_threshold_duration
 
 
 def t_test(sample_1, sample_2, paired, alpha=0.05, equal_var=True):
@@ -39,7 +55,6 @@ def t_test(sample_1, sample_2, paired, alpha=0.05, equal_var=True):
         _, p_value = stats.ttest_ind(sample_1, sample_2, equal_var=equal_var)
     if p_value < alpha:
         reject = True
-
     return reject, p_value
 
 
@@ -53,7 +68,6 @@ def non_parametric_test(
         _, p_value = stats.mannwhitneyu(sample_1, sample_2, alternative=alternative)
     if p_value < alpha:
         reject = True
-
     return reject, p_value
 
 
@@ -63,7 +77,6 @@ def verify_normal_dist(data):
     stats.probplot(z, dist="norm", plot=plt)
     plt.title("Normal Q-Q plot")
     plt.show()
-
     return
 
 
@@ -73,7 +86,6 @@ def equal_variance_test(sample_1, sample_2, alpha=0.05):
     _, p_value = stats.levene(sample_1, sample_2)
     if p_value < alpha:
         reject = True
-
     _, ax = plt.subplots()
     ax.boxplot([sample_1, sample_2])
     ax.set_ylabel("Values")
@@ -85,7 +97,6 @@ def equal_variance_test(sample_1, sample_2, alpha=0.05):
 def compare_all(path, mode, parametric=False):
     regarded_features = ["Acc_Vector", "FreeAcc_X", "FreeAcc_Y", "FreeAcc_Z"]
     # regarded_features = ["Euler_X", "Euler_Y", "Euler_Z"]
-
     for feature in regarded_features:
         paired = False
         print(f"{feature}\n")
@@ -105,7 +116,6 @@ def compare_all(path, mode, parametric=False):
         }
 
         for sample_1, sample_2 in sample_pairs:
-
             if parametric:
                 reject_levene, _ = equal_variance_test(sample_1, sample_2)
                 if reject_levene and paired:
@@ -133,6 +143,38 @@ def compare_all(path, mode, parametric=False):
             )
             print(f"H0 is {rejection_status} with p-value = {p_value}\n")
         print("-" * 50)
+
+
+def fisher_exact_test(samples, threshold, alternative="two-sided", alpha=0.05):
+
+    # Proportion test comparing two sample groups
+    reject = False
+    df1, df2 = samples[0], samples[1]
+    sum1 = (df1[0] > threshold).sum()
+    sum2 = (df2[0] > threshold).sum()
+    contingency_table = [
+        [sum1, sum2],
+        [len(df1) - sum1, len(df2) - sum2],
+    ]
+    _, p_value = stats.fisher_exact(contingency_table, alternative=alternative)
+    if p_value < alpha:
+        reject = True
+    prop_1 = sum1 / len(df1)
+    prop_2 = sum2 / len(df2)
+    rejection_status = "rejected" if reject else "not rejected"
+    print(f"Fisher exact test: prop_1 = {prop_1}, prop_2 = {prop_2}, alpha = {alpha}")
+    print(f"H0 is {rejection_status} with p-value = {p_value}\n")
+    return reject, p_value
+
+
+def multi_proportions(samples, threshold):
+    # Multi-proportion test
+    df1, df2, df3 = samples[0], samples[1], samples[2]
+    successes = [(df[0] > threshold).sum() for df in [df1, df2, df3]]
+    total_samples = [len(df[0]) for df in [df1, df2, df3]]
+    prop_test = stats_r.prop_test(np.array(successes), np.array(total_samples))
+    print(prop_test)
+    return
 
 
 def get_above_threshold_duration(acceleration_data, threshold):
@@ -199,12 +241,17 @@ def create_sample_groups(path, mode, feature):
 
 if __name__ == "__main__":
     input_path = "data/splitted_throws"
-    # BH, FH, PT = create_sample_groups(input_path, "max_acceleration")
+    BH, FH, PT = create_sample_groups(input_path, "max_acceleration", "Acc_Vector")
     # print(BH)
 
     # print(non_parametric_test(FH, BH, False))
 
-    compare_all(input_path, mode="max_acceleration")
+    # compare_all(input_path)
+
+    reject, p_value = fisher_exact_test([BH, FH], 200)
+
+    multi_proportions([BH, FH, PT], 100)
+
 
     # verify_normal_dist(BH.iloc[:, 0])
 
