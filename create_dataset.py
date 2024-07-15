@@ -157,7 +157,15 @@ if __name__ == "__main__":
     # paths = ["data/20240612", "data/20240604", "data/20240608", "data/20240619"]
 
     # excluding 20240608, because of poor quality of data
-    anomaly_contaminations = [0.03, 0.01, 0.04, 0.02]
+    anomaly_contaminations = [0.03, 0.04, 0.04, 0.02, 0.03, 0.03]
+    paths = [
+        "data/20240612",
+        "data/20240616",
+        "data/20240619",
+        "data/20240623",
+        "data/20240626",
+        "data/manually_cutted_throws",
+    ]
     paths = ["data/20240612", "data/20240604", "data/20240619", "data/20240623", "data/manually_cutted_throws"]
 
     throws_list = collect_data(paths, anomaly_contaminations)

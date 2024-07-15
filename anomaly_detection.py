@@ -61,8 +61,11 @@ def plot_anomalies(
         color="red",
         label="Anomaly",
     )
+
     plt.title(foldername.split("_")[2])
     plt.legend()
+    plt.ylabel("Acceleration Magnitude (m/s^2)")
+    plt.xlabel("Time (ms)")
     plt.savefig(
         fname=os.path.join(
             PLOT_DIR,
@@ -182,6 +185,8 @@ def plot_anomaly_groups(df: pd.DataFrame, foldername: str):
     # add legend for the color intervals
     ax.plot([], [], color="orange", alpha=0.5, label="Anomaly Interval", linewidth=3)
     plt.title(foldername.split("_")[2])
+    plt.ylabel("Acceleration (m/s^2)")
+    plt.xlabel("Time (ms)")
 
     # # add pointers to the anomalies indicating that first intervals shows backhand, seocond interval shows forehand and last a putt
     # ax.annotate('Backhand', xy=(anomalies.index[0], anomalies['FreeAccMagnitude'].values[0]), xytext=(anomalies.index[0] + 100, anomalies['FreeAccMagnitude'].values[0] + 0.5),
