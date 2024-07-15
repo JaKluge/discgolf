@@ -29,6 +29,8 @@ def visualise_all(path, name, feature):
                 time = df.SampleTimeFine
             plt.plot(time, df[feature], linewidth=1) 
 
+    if name == 'Jannie': name = 'Janine' 
+  
     plt.title(f"{label_mapping[feature]} of all 40 throws by {label_mapping[name]}")
     plt.xlabel('Time (ms)')
     plt.ylabel('Acceleration (m/s²)')
