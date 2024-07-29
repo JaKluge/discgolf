@@ -180,6 +180,7 @@ def evaluate_naive_bayes(X_train, X_test, y_train, y_test):
 if __name__ == "__main__":
 
     throws_list = read_csv_throws()
+    throws_list = [throw for throw in throws_list if throw["Label"].iloc[0] != "PT"]
     labels = [throw["Label"].iloc[0] for throw in throws_list]
 
     throw_features = feature_extraction(throws_list)
@@ -209,13 +210,13 @@ if __name__ == "__main__":
     )
 
     evaluate_naive_bayes(X_train_feat, X_test_feat, y_train_feat, y_test_feat)
-    # X_train_raw, X_test_raw, y_train_raw, y_test_raw = train_test_split(
-    #     throw_df,
-    #     labels,
-    #     stratify=labels,
-    #     test_size=0.2,
-    #     random_state=SEED,
-    # )
+    X_train_raw, X_test_raw, y_train_raw, y_test_raw = train_test_split(
+        throw_df,
+        labels,
+        stratify=labels,
+        test_size=0.2,
+        random_state=SEED,
+    )
 
-    # results_ts = classify_ts(np.array(X_train_raw), np.array(y_train_raw))
-    # print(results_ts)
+    results_ts = classify_ts(np.array(X_train_raw), np.array(y_train_raw))
+    print(results_ts)

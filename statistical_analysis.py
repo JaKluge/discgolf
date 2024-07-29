@@ -6,6 +6,7 @@ import glob
 from scipy import stats
 from statsmodels.stats.power import tt_ind_solve_power, tt_solve_power
 import rpy2.robjects.numpy2ri
+from anomaly_detection import PLOT_DIR
 
 rpy2.robjects.numpy2ri.activate()
 from rpy2.robjects.packages import importr
@@ -13,7 +14,7 @@ from rpy2.robjects.packages import importr
 stats_r = importr("stats")
 
 
-def create_dfs(path, compare, mode="max_acceleration"):
+def create_dfs(path, compare, feature, mode="max_acceleration"):
     dfs_to_compare = []
 
     # names of the datasets to compare: at least on of ['Jannie', 'Julian', 'Kevin', 'Forehand']
@@ -30,7 +31,7 @@ def create_dfs(path, compare, mode="max_acceleration"):
                 elif mode == "variance_gyroscope":
                     values = df.var()
                 elif mode == "above_threshold_duration":
-                    values = get_above_threshold_duration(df["Acc_Vector"], 100)
+                    values = get_above_threshold_duration(df[feature], 150)
                 values_list.append(values)
 
         values_df = pd.DataFrame(values_list)
@@ -98,7 +99,7 @@ def compare_all(path, mode, parametric=False):
     regarded_features = ["Acc_Vector", "FreeAcc_X", "FreeAcc_Y", "FreeAcc_Z"]
     # regarded_features = ["Euler_X", "Euler_Y", "Euler_Z"]
     for feature in regarded_features:
-        paired = False
+        paired = True
         print(f"{feature}\n")
 
         BH, FH, PT = create_sample_groups(path, mode, feature)
@@ -106,7 +107,7 @@ def compare_all(path, mode, parametric=False):
         sample_pairs = [
             (BH, FH),
             (BH, PT),
-            (PT, BH),
+            (PT, FH),
         ]
 
         dict_names = {
@@ -229,7 +230,7 @@ def create_sample_groups(path, mode, feature):
         if mode == "max_acceleration":
             values = throw[feature].max()
         elif mode == "above_threshold_duration":
-            values = get_above_threshold_duration(throw["Acc_Vector"], 50)
+            values = get_above_threshold_duration(throw[feature], 150)
         values_dict[label].append(values)
 
     return (
@@ -241,19 +242,8 @@ def create_sample_groups(path, mode, feature):
 
 if __name__ == "__main__":
     input_path = "data/splitted_throws"
-    BH, FH, PT = create_sample_groups(input_path, "max_acceleration", "Acc_Vector")
-    # print(BH)
-
-    # print(non_parametric_test(FH, BH, False))
-
-    # compare_all(input_path)
-
-    reject, p_value = fisher_exact_test([BH, FH], 200)
-
-    multi_proportions([BH, FH, PT], 100)
-
-
-    # verify_normal_dist(BH.iloc[:, 0])
-
-    # calculate_sample_size(samples=["Julian", "Forehand"], paired=True)
-    # calculate_sample_size(samples=["Jannie", "Kevin"])
+    # above_threshold_duration, max_acceleration
+    BH, FH, PT = create_sample_groups(
+        input_path, "above_threshold_duration", "Acc_Vector"
+    )
+    reject, p_value = fisher_exact_test([BH, FH], 7, alternative="greater")

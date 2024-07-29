@@ -10,3 +10,10 @@ tsfresh==0.20.2
 tslearn==0.6.3
 h5py==3.11.0
 wandb==0.17.4
+torch==2.3.1
+scikit-learn==1.5.0
+pytorch-lightning==2.3.1
+optuna==3.6.1
+wandb==0.17.4
+seaborn==0.13.2
+sktime==0.31.0
